@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+message TriggerMessage {
+  string name = 1;
+}
+
+message VariableMessage {
+  string name = 1;
+  oneof value {
+    string string_value = 3;
+    double numeric_value = 4;
+    bool bool_value = 5;
+  }
+  bool read_only = 6;
+}
+
+message CommandMessage {
+  enum CommandType {
+    GET_VARIABLE = 0;
+    SET_VARIABLE = 1;
+    GET_ALL_VARIABLES = 2;
+    GET_ALL_TRIGGERS = 3;
+    EXECUTE_TRIGGER = 4;
+  }
+
+  uint64 command_id = 1;
+  CommandType command_type = 2; 
+
+  optional string variable_name = 3;  // for GET_VARIABLE
+  optional VariableMessage variable = 4; // for SET_VARIABLE
+  optional TriggerMessage trigger = 5; // for EXECUTE_TRIGGER
+}
+
+message ResponseMessage {
+  uint64 command_id = 1;
+  bool success = 2;
+
+  optional string error_message = 3;
+  optional string message = 4;
+  
+  optional VariableMessage variable = 5;  // for GET_VARIABLE
+  repeated VariableMessage variables = 6;  // for GET_ALL_VARIABLES
+  repeated TriggerMessage triggers = 7;  // for GET_ALL_TRIGGERS
+}

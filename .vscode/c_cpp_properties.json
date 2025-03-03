@@ -1,0 +1,44 @@
+{
+  "configurations": [
+      {
+          "name": "Win32",
+          "includePath": [
+              "${workspaceFolder}/**",
+              "${workspaceFolder}/include",
+              "${vcpkgRoot}/x64-windows/include"
+          ],
+          "defines": [],
+          "cStandard": "c11",
+          "cppStandard": "c++17",
+          "intelliSenseMode": "windows-msvc-x64"
+      },
+      {
+          "name": "MSYS",
+          "includePath": [
+              "${workspaceFolder}/**",
+              "${workspaceFolder}/include",
+              "${vcpkgRoot}/x64-windows/include"
+          ],
+          "defines": [],
+          "cStandard": "c11",
+          "cppStandard": "c++17",
+          "intelliSenseMode": "windows-msvc-x64"
+      },
+      {
+          "name": "Linux",
+          "includePath": [
+              "${workspaceFolder}/**",
+              "${workspaceFolder}/include",
+              "/usr/local/include",
+              "/usr/local/include/opencv4",
+              "/usr/include"
+          ],
+          "defines": [],
+          "compilerPath": "/usr/bin/gcc",
+          "cStandard": "c11",
+          "cppStandard": "c++17",
+          "intelliSenseMode": "linux-gcc-x64"
+      }
+  ],
+  "version": 4
+}
