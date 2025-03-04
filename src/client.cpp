@@ -19,7 +19,7 @@ Client::~Client() {
 
 bool Client::Connect() {
   if (connected_) {
-    return true;  // 이미 연결됨
+    return true;
   }
   
   try {
@@ -49,7 +49,6 @@ bool Client::Connect() {
       if (subscriber_) subscriber_->close();
       if (inproc_socket_) inproc_socket_->close();
     }
-    
     return connected_;
   } catch (const zmq::error_t& e) {
     std::cerr << "ZeroMQ error in Connect(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
@@ -72,7 +71,6 @@ void Client::Disconnect() {
   if (running_) {
     running_ = false;
 
-    // 내부 제어 소켓에 종료 메시지 보내기
     zmq::socket_t s(context_, ZMQ_PAIR);
     s.connect("inproc://control");
     zmq::message_t msg(5);
@@ -93,7 +91,7 @@ void Client::Disconnect() {
 Value Client::GetVariable(const std::string& name) {
   if (!connected_ && !Connect()) {
     std::cerr << "Not connected to server" << std::endl;
-    return Value{};  // 기본값 반환
+    return Value{};
   }
   
   CommandMessage cmd;
@@ -107,12 +105,12 @@ Value Client::GetVariable(const std::string& name) {
     return __ExtractValue(response.variable());
   }
   
-  if (!response.success() && response.has_error_message()) {
+  if (!response.success()) {
     std::cerr << "Error getting variable '" << name << "': " 
               << response.error_message() << std::endl;
   }
   
-  return Value{};  // 기본값 반환
+  return Value{};
 }
 
 std::unordered_map<std::string, Value> Client::GetAllVariables() {
@@ -134,7 +132,7 @@ std::unordered_map<std::string, Value> Client::GetAllVariables() {
       const VariableMessage& var = response.variables(i);
       result[var.name()] = __ExtractValue(var);
     }
-  } else if (response.has_error_message()) {
+  } else {
     std::cerr << "Error getting all variables: " << response.error_message() << std::endl;
   }
   
@@ -160,7 +158,7 @@ std::vector<std::string> Client::GetAllTriggers() {
       const TriggerMessage& trigger = response.triggers(i);
       result.push_back(trigger.name());
     }
-  } else if (response.has_error_message()) {
+  } else {
     std::cerr << "Error getting all triggers: " << response.error_message() << std::endl;
   }
   
@@ -254,36 +252,29 @@ ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
   try {
     std::lock_guard<std::mutex> lock(dealer_mutex_);
     pending_responses_[cmd_id] = std::move(response_promise);
-
-    // 빈 프레임 먼저 전송
     dealer_->send(zmq::message_t(), ZMQ_SNDMORE);
     zmq::message_t request(cmd.ByteSizeLong());
     cmd.SerializeToArray(request.data(), request.size());
     dealer_->send(request);
   }
   catch (const zmq::error_t& e) {
-    if (e.num() == EAGAIN) {  // 타임아웃 에러 코드
+    if (e.num() == EAGAIN) {
       std::cerr << "Send timeout for command ID " << cmd_id << std::endl;
       
-      // pending_responses_에서 항목 제거
       std::lock_guard<std::mutex> lock(dealer_mutex_);
       pending_responses_.erase(cmd_id);
       
-      // 타임아웃 응답 생성
       ResponseMessage timeout_response;
       timeout_response.set_command_id(cmd_id);
       timeout_response.set_success(false);
       timeout_response.set_error_message("Send timeout");
       return timeout_response;
     } else {
-      // 다른 ZeroMQ 에러 처리
       std::cerr << "ZeroMQ error in SendCommandSync: " << e.what() << " (errno: " << e.num() << ")" << std::endl;
       
-      // pending_responses_에서 항목 제거
       std::lock_guard<std::mutex> lock(dealer_mutex_);
       pending_responses_.erase(cmd_id);
       
-      // 에러 응답 생성
       ResponseMessage error_response;
       error_response.set_command_id(cmd_id);
       error_response.set_success(false);
@@ -292,12 +283,11 @@ ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
     }
   }
   
-  // 응답을 기다림 (blocking)
   try {
     return response_future.get();
   }
   catch (const std::exception& e) {
-    // future.get() 에서 예외 발생 시 처리
+    // Exceptions from future.get()
     std::cerr << "Exception while waiting for response: " << e.what() << std::endl;
     
     ResponseMessage error_response;
@@ -329,8 +319,6 @@ void Client::__SendCommandAsync(const CommandMessage& cmd,
   {
     std::lock_guard<std::mutex> lock(dealer_mutex_);
     async_responses_[cmd_id] = callback;
-    
-    // 빈 프레임 먼저 전송
     dealer_->send(zmq::message_t(), ZMQ_SNDMORE);
     zmq::message_t request(cmd.ByteSizeLong());
     cmd.SerializeToArray(request.data(), request.size());
@@ -350,7 +338,7 @@ void Client::__WorkerLoop() {
   zmq::pollitem_t& subscriber_poll = items[1];
   zmq::pollitem_t& inproc_socket_poll = items[2];
 
-  // 재연결 지연 관련 변수
+  // Variables for reconnection.
   int reconnect_attempts = 0;
   const int max_reconnect_attempts = 5;
   const int initial_reconnect_delay_ms = 100;
@@ -359,10 +347,8 @@ void Client::__WorkerLoop() {
   bool need_reconnect = false;
 
   while (running_) {
-    // 재연결이 필요한 경우
     if (need_reconnect) {
       if (reconnect_attempts < max_reconnect_attempts) {
-        // 지수 백오프로 재연결 지연 시간 계산
         int delay_ms = std::min(
             initial_reconnect_delay_ms * (1 << reconnect_attempts),
             max_reconnect_delay_ms);
@@ -376,11 +362,9 @@ void Client::__WorkerLoop() {
                     << " of " << max_reconnect_attempts << ")..." << std::endl;
           
           try {
-            // 기존 소켓 닫기
             dealer_->close();
             subscriber_->close();
             
-            // 소켓 재생성 및 재연결
             dealer_ = std::make_unique<zmq::socket_t>(context_, ZMQ_DEALER);
             dealer_->setsockopt(ZMQ_RCVTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
             dealer_->setsockopt(ZMQ_SNDTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
@@ -391,17 +375,15 @@ void Client::__WorkerLoop() {
             subscriber_->setsockopt(ZMQ_RCVTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
             subscriber_->connect(sub_endpoint_);
             
-            // pollitem 업데이트
             items[0] = { static_cast<void*>(*dealer_), 0, ZMQ_POLLIN, 0 };
             items[1] = { static_cast<void*>(*subscriber_), 0, ZMQ_POLLIN, 0 };
             
-            // 연결 성공
             std::cout << "Reconnection successful" << std::endl;
             reconnect_attempts = 0;
             need_reconnect = false;
             connected_ = true;
             
-            // 보류 중인 모든 요청에 오류 응답 보내기
+            // Sends error message to pending requests.
             std::lock_guard<std::mutex> lock(dealer_mutex_);
             for (auto& [cmd_id, promise] : pending_responses_) {
               ResponseMessage error_response;
@@ -412,7 +394,7 @@ void Client::__WorkerLoop() {
             }
             pending_responses_.clear();
             
-            // 비동기 콜백도 오류로 처리
+            // Sends error message to async requests.
             for (auto& [cmd_id, callback] : async_responses_) {
               if (callback) {
                 ResponseMessage error_response;
@@ -432,11 +414,10 @@ void Client::__WorkerLoop() {
         }
       }
       else {
-        // 최대 재시도 횟수 초과
         std::cerr << "Max reconnection attempts reached. Giving up." << std::endl;
         connected_ = false;
         
-        // 모든 대기 중인 요청에 실패 응답 전송
+        // Sends failure to all requests.
         std::lock_guard<std::mutex> lock(dealer_mutex_);
         for (auto& [cmd_id, promise] : pending_responses_) {
           ResponseMessage error_response;
@@ -448,7 +429,6 @@ void Client::__WorkerLoop() {
         pending_responses_.clear();
         async_responses_.clear();
         
-        // 워커 루프 종료
         running_ = false;
         break;
       }
@@ -459,7 +439,6 @@ void Client::__WorkerLoop() {
       try {
         zmq::message_t empty;
         zmq::message_t reply;
-        // 응답 수신
         {
           std::lock_guard<std::mutex> lock(dealer_mutex_);
           dealer_->recv(&empty);
@@ -470,7 +449,7 @@ void Client::__WorkerLoop() {
         response.ParseFromArray(reply.data(), reply.size());
         uint64_t cmd_id = response.command_id();
         
-        // 동기식 응답 처리
+        // Handles sync communication.
         {
           std::lock_guard<std::mutex> lock(dealer_mutex_);
           auto it = pending_responses_.find(cmd_id);
@@ -481,7 +460,7 @@ void Client::__WorkerLoop() {
           }
         }
         
-        // 비동기식 콜백 처리
+        // Handles async communication.
         {
           std::lock_guard<std::mutex> lock(dealer_mutex_);
           auto it = async_responses_.find(cmd_id);
@@ -532,7 +511,7 @@ void Client::__WorkerLoop() {
       catch (const zmq::error_t& e) {
         if (e.num() == EAGAIN) {
           std::cerr << "Receive timeout on subscriber socket" << std::endl;
-          // SUB 소켓 타임아웃은 심각한 오류가 아닐 수 있으므로 재연결하지 않고 계속 진행
+          // SUB socket timeout may not be a fatal error, so continue without reconnecting.
         } else {
           std::cerr << "ZeroMQ error in subscriber recv: " << e.what() << " (errno: " << e.num() << ")" << std::endl;
           need_reconnect = true;
@@ -551,14 +530,16 @@ void Client::__WorkerLoop() {
 }
 
 Value Client::__ExtractValue(const VariableMessage& variable) {
-  if (variable.has_string_value()) {
+  switch (variable.value_case()) {
+  case VariableMessage::kStringValue: 
     return variable.string_value();
-  } else if (variable.has_numeric_value()) {
+  case VariableMessage::kNumericValue: 
     return variable.numeric_value();
-  } else if (variable.has_bool_value()) {
+  case VariableMessage::kBoolValue: 
     return variable.bool_value();
+  default:
+    return Value{};
   }
-  return Value{};  // 기본값
 }
 
 void Client::__SetValueToVariableMessage(VariableMessage* variable, const Value& value) {

@@ -50,7 +50,6 @@ void Server::Stop() {
   if (running_) {
     running_ = false;
 
-    // 내부 제어 소켓에 종료 메시지 보내기
     zmq::socket_t s(context_, ZMQ_PAIR);
     s.connect("inproc://control");
     zmq::message_t msg(5);
@@ -168,29 +167,24 @@ void Server::__WorkerLoop() {
 
         CommandMessage command;
         command.ParseFromArray(request.data(), request.size());
-        // 메시지 데이터만 복사 (zmq::message_t는 복사 불가)
+        // zmq::message_t cannot be copied, so copy its data.
         std::vector<char> identity_data(static_cast<char*>(identity.data()), 
                                         static_cast<char*>(identity.data()) + identity.size());
         std::vector<char> empty_data(static_cast<char*>(empty.data()), 
                                     static_cast<char*>(empty.data()) + empty.size());
 
-        // 스레드 풀에 작업 추가
         thread_pool_.Enqueue([this, command, identity_data, empty_data]() {
-          // 명령 처리
           ResponseMessage response = this->__HandleCommand(command);
           
-          // 응답 준비
           zmq::message_t reply(response.ByteSizeLong());
           response.SerializeToArray(reply.data(), reply.size());
           
-          // identity와 empty 메시지 재생성
           zmq::message_t identity_msg(identity_data.size());
           memcpy(identity_msg.data(), identity_data.data(), identity_data.size());
           
           zmq::message_t empty_msg(empty_data.size());
           memcpy(empty_msg.data(), empty_data.data(), empty_data.size());
           
-          // 응답 전송
           std::lock_guard<std::mutex> lock(this->router_mutex_);
           this->router_->send(identity_msg, ZMQ_SNDMORE);
           this->router_->send(empty_msg, ZMQ_SNDMORE);
@@ -252,14 +246,7 @@ ResponseMessage Server::__HandleCommand(const CommandMessage& command) {
 }
 
 void Server::__HandleGetVariable(const CommandMessage& command, ResponseMessage& response) {
-  if (!command.has_variable_name()) {
-    response.set_success(false);
-    response.set_error_message("Variable name not specified");
-    return;
-  }
-  
   std::string prop_name = command.variable_name();
-  
   std::lock_guard<std::mutex> lock(variables_mutex_);
   auto it = variables_.find(prop_name);
   
@@ -310,10 +297,7 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
 
   Value& value = it->second.value;
   bool changed = false;
-
-  // 타입 확인 및 값 설정
   if (std::holds_alternative<double>(value)) {
-    // 클라이언트가 numeric_value를 설정했는지 확인
     if (prop.value_case() == VariableMessage::kNumericValue) {
       double new_value = prop.numeric_value();
       if (std::get<double>(value) != new_value) {
@@ -328,7 +312,6 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
     }
   } 
   else if (std::holds_alternative<bool>(value)) {
-    // 클라이언트가 bool_value를 설정했는지 확인
     if (prop.value_case() == VariableMessage::kBoolValue) {
       bool new_value = prop.bool_value();
       if (std::get<bool>(value) != new_value) {
@@ -343,7 +326,6 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
     }
   } 
   else if (std::holds_alternative<std::string>(value)) {
-    // 클라이언트가 string_value를 설정했는지 확인
     if (prop.value_case() == VariableMessage::kStringValue) {
       std::string new_value = prop.string_value();
       if (std::get<std::string>(value) != new_value) {
@@ -358,7 +340,6 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
     }
   }
 
-  // 값이 변경된 경우만 콜백 호출
   if (changed && it->second.callback)
     it->second.callback(it->second.value);
 

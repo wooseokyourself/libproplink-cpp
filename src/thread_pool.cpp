@@ -8,27 +8,19 @@ ThreadPool::ThreadPool(size_t threads) : stop_(false) {
       while(true) {
         std::function<void()> task;
         
-        // 작업을 가져오거나 종료 신호를 기다립니다.
+        // Fetches a task or waits for a termination signal.
         {
           std::unique_lock<std::mutex> lock(this->queue_mutex_);
           this->condition_.wait(lock, [this] { 
             return this->stop_ || !this->tasks_.empty(); 
           });
-          
-          // stop이 true이고 작업이 없으면 스레드를 종료합니다.
-          if(this->stop_ && this->tasks_.empty()) {
-            return;
-          }
-          
-          // 대기열에서 작업을 가져옵니다.
+          if (this->stop_ && this->tasks_.empty()) return;
+
+          // Get a job from the queue.
           task = std::move(this->tasks_.front());
           this->tasks_.pop();
         }
-        
-        // 작업을 실행합니다.
         task();
-        
-        // 활성 작업 수를 줄입니다.
         --active_tasks_;
       }
     });
@@ -40,11 +32,7 @@ ThreadPool::~ThreadPool() {
     std::unique_lock<std::mutex> lock(queue_mutex_);
     stop_ = true;
   }
-  
-  // 모든 스레드 깨우기
   condition_.notify_all();
-  
-  // 모든 스레드가 완료될 때까지 대기
   for(std::thread &worker: workers_) {
     if(worker.joinable()) {
       worker.join();

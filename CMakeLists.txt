@@ -16,22 +16,56 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release")
 
-# protobuf 정적 링킹을 위한 설정
-set(protobuf_USE_STATIC_LIBS ON)
-set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
+# Configure static linking for protobuf based on platform
+if(WIN32)
+    # Settings for static linking on Windows
+    set(protobuf_USE_STATIC_LIBS ON)
+    set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "")
+endif()
 
-# 필요한 패키지 찾기
-find_package(protobuf CONFIG REQUIRED)
-find_package(ZeroMQ CONFIG REQUIRED)
-find_package(cppzmq CONFIG REQUIRED)
+# Find required packages with platform-specific settings
+if(WIN32)
+    # On Windows, use CONFIG mode for packages from vcpkg
+    find_package(protobuf CONFIG REQUIRED)
+    find_package(ZeroMQ CONFIG REQUIRED)
+    find_package(cppzmq CONFIG REQUIRED)
+else()
+    # On Linux/Ubuntu, use module mode for Protobuf
+    find_package(Protobuf REQUIRED)
+    
+    # For Linux/Jetson, use pkg-config to find ZeroMQ and cppzmq
+    # First make sure pkg-config is available
+    find_package(PkgConfig REQUIRED)
+    
+    # Find ZeroMQ using pkg-config
+    pkg_check_modules(ZeroMQ REQUIRED libzmq)
+    
+    # If cppzmq is not installed as a package, we might need to provide
+    # the path to the cppzmq headers or build it from source
+    # For now, assume the headers are in a standard location
+    set(CPPZMQ_INCLUDE_DIRS "/usr/include" CACHE PATH "cppzmq include directories")
+    
+    # Additional Linux dependencies if needed
+    find_package(Threads REQUIRED)
+endif()
 
-# 패키지 정보 출력
-message(STATUS "Protobuf library: ${protobuf_LIBRARIES}")
-message(STATUS "ZeroMQ found: ${ZeroMQ_FOUND}")
+# Output package information
+message(STATUS "Protobuf found: ${Protobuf_FOUND}")
+if(WIN32)
+    message(STATUS "ZeroMQ found: ${ZeroMQ_FOUND}")
+else()
+    message(STATUS "ZeroMQ found via pkg-config: ${ZeroMQ_FOUND}")
+    message(STATUS "ZeroMQ libraries: ${ZeroMQ_LIBRARIES}")
+    message(STATUS "ZeroMQ include dirs: ${ZeroMQ_INCLUDE_DIRS}")
+endif()
 
 # Protocol Buffer files
 set(PROTO_FILES property.proto)
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+if(WIN32)
+    protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+else()
+    Protobuf_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+endif()
 
 # Common source files for both server and client
 set(COMMON_SOURCES
@@ -68,10 +102,10 @@ set(CLIENT_HEADERS
     ${COMMON_HEADERS}
 )
 
-# Build Mode - 기본값은 정적 라이브러리, 옵션으로 변경 가능
+# Build Mode - Default is static library, can be changed via option
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
-# 라이브러리 타입에 따라 적절한 추가 플래그 설정
+# Set appropriate flags based on library type
 if(BUILD_SHARED_LIBS)
     message(STATUS "Building proplink as SHARED libraries")
 else()
@@ -82,7 +116,7 @@ endif()
 add_library(proplink_server ${SERVER_SOURCES} ${SERVER_HEADERS})
 add_library(proplink_client ${CLIENT_SOURCES} ${CLIENT_HEADERS})
 
-# 라이브러리 속성 설정
+# Set library properties
 set_target_properties(proplink_server PROPERTIES
     DEBUG_POSTFIX "d"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release"
@@ -99,7 +133,7 @@ set_target_properties(proplink_client PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-# 공유 라이브러리일 경우 Windows에서 DLL 내보내기 심볼 설정
+# Configure export symbols for shared libraries on Windows
 if(BUILD_SHARED_LIBS AND WIN32)
     set_target_properties(proplink_server PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
     set_target_properties(proplink_client PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -123,24 +157,54 @@ target_include_directories(proplink_client
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-# Link libraries - ZeroMQ는 동적, Protobuf는 정적
-target_link_libraries(proplink_server 
-    PUBLIC 
-        cppzmq
-    PRIVATE
-        protobuf::libprotobuf
-)
+# Platform-specific include directories and link libraries
+if(WIN32)
+    # Windows-specific linking
+    target_link_libraries(proplink_server 
+        PUBLIC 
+            cppzmq
+        PRIVATE
+            protobuf::libprotobuf
+    )
 
-target_link_libraries(proplink_client 
-    PUBLIC 
-        cppzmq
-    PRIVATE
-        protobuf::libprotobuf
-)
+    target_link_libraries(proplink_client 
+        PUBLIC 
+            cppzmq
+        PRIVATE
+            protobuf::libprotobuf
+    )
+else()
+    # Add ZeroMQ include directories for Linux
+    target_include_directories(proplink_server
+        PRIVATE
+            ${ZeroMQ_INCLUDE_DIRS}
+            ${CPPZMQ_INCLUDE_DIRS}
+    )
+    target_include_directories(proplink_client
+        PRIVATE
+            ${ZeroMQ_INCLUDE_DIRS}
+            ${CPPZMQ_INCLUDE_DIRS}
+    )
 
-# Windows에서 정적 링킹을 위한 런타임 설정
+    # Linux/Ubuntu/Jetson-specific linking
+    target_link_libraries(proplink_server 
+        PRIVATE
+            ${Protobuf_LIBRARIES}
+            ${ZeroMQ_LIBRARIES}
+            Threads::Threads
+    )
+
+    target_link_libraries(proplink_client 
+        PRIVATE
+            ${Protobuf_LIBRARIES}
+            ${ZeroMQ_LIBRARIES}
+            Threads::Threads
+    )
+endif()
+
+# Configure static runtime linking for MSVC
 if(MSVC AND NOT BUILD_SHARED_LIBS)
-    # 정적 라이브러리용 정적 런타임 링킹 (/MT 또는 /MTd)
+    # Static runtime linking for static libraries (/MT or /MTd)
     set_property(TARGET proplink_server PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     set_property(TARGET proplink_client PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
@@ -162,7 +226,7 @@ set_target_properties(client_example PROPERTIES
 target_link_libraries(server_example PRIVATE proplink_server)
 target_link_libraries(client_example PRIVATE proplink_client)
 
-# Windows에서 예제 실행 파일도 정적 런타임 링킹 설정
+# Configure static runtime linking for MSVC example executables
 if(MSVC AND NOT BUILD_SHARED_LIBS)
     set_property(TARGET server_example PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     set_property(TARGET client_example PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
