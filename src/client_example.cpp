@@ -12,17 +12,17 @@
 
 using namespace proplink;
 
-// 전역 변수로 종료 플래그 설정
-volatile sig_atomic_t gRunning = 1;
+// Set termination flag as global variable
+volatile sig_atomic_t g_running = 1;
 
-// 시그널 핸들러
-void signalHandler(int signum) {
+// Signal handler
+void SignalHandler(int signum) {
   std::cout << "Interrupt signal (" << signum << ") received.\n";
-  gRunning = 0;
+  g_running = 0;
 }
 
-// 변수 값을 출력하는 헬퍼 함수
-void printValue(const Value& value) {
+// Helper function to print variable values
+void PrintValue(const Value& value) {
   if (std::holds_alternative<std::string>(value)) {
     std::cout << std::get<std::string>(value);
   } else if (std::holds_alternative<double>(value)) {
@@ -34,7 +34,7 @@ void printValue(const Value& value) {
   }
 }
 
-// 시간 측정 헬퍼 클래스
+// Helper class for time measurement
 class Timer {
 public:
   Timer(const std::string& name) : name_(name), start_(std::chrono::high_resolution_clock::now()) {
@@ -52,16 +52,20 @@ private:
   std::chrono::time_point<std::chrono::high_resolution_clock> start_;
 };
 
-// 콜백 카운터
+// Callback counter
 std::atomic<int> g_client_callback_counter(0);
 
 int main() {
-  // 시그널 핸들러 등록
-  signal(SIGINT, signalHandler);
+  // Register signal handler
+  signal(SIGINT, SignalHandler);
 
-  // 클라이언트 생성 및 서버 연결
+  // Create client and connect to server
   std::cout << "Creating client and connecting to server..." << std::endl;
+#ifdef _WIN32
   Client client("tcp://127.0.0.1:5555", "tcp://127.0.0.1:5556");
+#else
+  Client client("ipc:///tmp/server1", "ipc:///tmp/server2");
+#endif
 
   std::cout << "Connecting to server..." << std::endl;
   if (!client.Connect()) {
@@ -70,11 +74,11 @@ int main() {
   }
   std::cout << "Connected successfully" << std::endl << std::endl;
   
-  // 콜백 함수 등록 (서버에서 변수가 변경될 때 호출됨)
-  auto clientCallback = [](const Value& value) {
+  // Register callback function (called when variables are changed on the server)
+  auto client_callback = [](const Value& value) {
     int id = ++g_client_callback_counter;
     std::stringstream ss;
-    ss << "[Callback " << id << "] 서버에서 변수가 변경됨: ";
+    ss << "[Callback " << id << "] Variable changed on server: ";
     
     if (std::holds_alternative<std::string>(value)) {
       ss << std::get<std::string>(value);
@@ -87,127 +91,127 @@ int main() {
     std::cout << ss.str() << std::endl;
   };
   
-  // 모든 변수에 대한 콜백 등록
-  std::cout << "모든 변수에 대한 콜백 등록 중..." << std::endl;
+  // Register callbacks for all variables
+  std::cout << "Registering callbacks for all variables..." << std::endl;
   auto variables = client.GetAllVariables();
   for (const auto& [name, value] : variables) {
-    client.RegisterCallback(name, clientCallback);
-    std::cout << "  - " << name << "에 콜백 등록됨" << std::endl;
+    client.RegisterCallback(name, client_callback);
+    std::cout << "  - Callback registered for " << name << std::endl;
   }
   
-  // 모든 트리거 표시
-  std::cout << "\n사용 가능한 트리거:" << std::endl;
+  // Display all available triggers
+  std::cout << "\nAvailable triggers:" << std::endl;
   auto triggers = client.GetAllTriggers();
   for (const auto& trigger : triggers) {
     std::cout << "  - " << trigger << std::endl;
   }
   
-  std::cout << "\n테스트 시작 - 다양한 연결 옵션으로 변수 설정 및 트리거 실행\n" << std::endl;
+  std::cout << "\nStarting tests - Setting variables and executing triggers with various connection options\n" << std::endl;
   
-  // 테스트 시작
+  // Start testing
   int test_number = 0;
   
-  while (gRunning && test_number < 10) {
+  while (g_running && test_number < 10) {
     test_number++;
-    std::cout << "\n======= 테스트 #" << test_number << " ========" << std::endl;
+    std::cout << "\n======= Test #" << test_number << " ========" << std::endl;
     
-    // 테스트 1: 동기 방식으로 변수 설정 (서버의 응답을 기다림)
-    std::cout << "\n[테스트 " << test_number << ".1] SyncConnection으로 'exposure' 변수 설정 (블로킹 됨)" << std::endl;
+    // Test 1: Set variable synchronously (wait for server response)
+    std::cout << "\n[Test " << test_number << ".1] Setting 'exposure' variable with SyncConnection (blocking)" << std::endl;
     {
       Timer timer("SyncConnection SetVariable");
       double new_value = 100.0 + test_number * 10.0;
       
       bool result = client.SetVariable("exposure", new_value, SyncConnection, 
         [](const ResponseMessage& resp) {
-          std::cout << "동기 응답 수신: " << (resp.success() ? "성공" : "실패");
-          if (resp.has_message()) {
+          std::cout << "Synchronous response received: " << (resp.success() ? "Success" : "Failure");
+          if (!resp.message().empty()) {
             std::cout << " - " << resp.message();
           }
-          if (resp.has_error_message()) {
-            std::cout << " - 오류: " << resp.error_message();
+          if (!resp.error_message().empty()) {
+            std::cout << " - Error: " << resp.error_message();
           }
           std::cout << std::endl;
         });
       
-      std::cout << "변수 설정 결과: " << (result ? "성공" : "실패") << std::endl;
+      std::cout << "Variable setting result: " << (result ? "Success" : "Failure") << std::endl;
     }
     
-    // 잠시 대기
+    // Wait briefly
     std::this_thread::sleep_for(std::chrono::seconds(1));
     
-    // 테스트 2: 비동기 방식으로 변수 설정 (서버의 응답을 기다리지 않음)
-    std::cout << "\n[테스트 " << test_number << ".2] AsyncConnection으로 'gain' 변수 설정 (논블로킹)" << std::endl;
+    // Test 2: Set variable asynchronously (don't wait for server response)
+    std::cout << "\n[Test " << test_number << ".2] Setting 'gain' variable with AsyncConnection (non-blocking)" << std::endl;
     {
       Timer timer("AsyncConnection SetVariable");
       double new_value = 1.0 + test_number * 0.5;
       
       bool result = client.SetVariable("gain", new_value, AsyncConnection,
         [](const ResponseMessage& resp) {
-          std::cout << "비동기 응답 수신: " << (resp.success() ? "성공" : "실패");
-          if (resp.has_message()) {
+          std::cout << "Asynchronous response received: " << (resp.success() ? "Success" : "Failure");
+          if (!resp.message().empty()) {
             std::cout << " - " << resp.message();
           }
-          if (resp.has_error_message()) {
-            std::cout << " - 오류: " << resp.error_message();
+          if (!resp.error_message().empty()) {
+            std::cout << " - Error: " << resp.error_message();
           }
           std::cout << std::endl;
         });
       
-      std::cout << "변수 설정 요청 결과: " << (result ? "성공" : "실패") << std::endl;
+      std::cout << "Variable setting request result: " << (result ? "Success" : "Failure") << std::endl;
     }
     
-    // 잠시 대기
+    // Wait briefly
     std::this_thread::sleep_for(std::chrono::seconds(1));
     
-    // 테스트 3: 동기 방식으로 트리거 실행 (서버의 응답을 기다림)
-    std::cout << "\n[테스트 " << test_number << ".3] SyncConnection으로 'start' 트리거 실행 (블로킹 됨)" << std::endl;
+    // Test 3: Execute trigger synchronously (wait for server response)
+    std::cout << "\n[Test " << test_number << ".3] Executing 'start' trigger with SyncConnection (blocking)" << std::endl;
     {
       Timer timer("SyncConnection ExecuteTrigger");
       
       bool result = client.ExecuteTrigger("start", SyncConnection,
         [](const ResponseMessage& resp) {
-          std::cout << "동기 트리거 응답 수신: " << (resp.success() ? "성공" : "실패");
-          if (resp.has_message()) {
+          std::cout << "Synchronous trigger response received: " << (resp.success() ? "Success" : "Failure");
+          if (!resp.message().empty()) {
             std::cout << " - " << resp.message();
           }
-          if (resp.has_error_message()) {
-            std::cout << " - 오류: " << resp.error_message();
+          if (!resp.error_message().empty()) {
+            std::cout << " - Error: " << resp.error_message();
           }
           std::cout << std::endl;
         });
       
-      std::cout << "트리거 실행 결과: " << (result ? "성공" : "실패") << std::endl;
+      std::cout << "Trigger execution result: " << (result ? "Success" : "Failure") << std::endl;
     }
     
-    // 잠시 대기
+    // Wait briefly
     std::this_thread::sleep_for(std::chrono::seconds(1));
     
-    // 테스트 4: 비동기 방식으로 트리거 실행 (서버의 응답을 기다리지 않음)
-    std::cout << "\n[테스트 " << test_number << ".4] AsyncConnection으로 'stop' 트리거 실행 (논블로킹)" << std::endl;
+    // Test 4: Execute trigger asynchronously (don't wait for server response)
+    std::cout << "\n[Test " << test_number << ".4] Executing 'stop' trigger with AsyncConnection (non-blocking)" << std::endl;
     {
       Timer timer("AsyncConnection ExecuteTrigger");
       
       bool result = client.ExecuteTrigger("stop", AsyncConnection,
         [](const ResponseMessage& resp) {
-          std::cout << "비동기 트리거 응답 수신: " << (resp.success() ? "성공" : "실패");
-          if (resp.has_message()) {
+          std::cout << "Asynchronous trigger response received: " << (resp.success() ? "Success" : "Failure");
+          if (!resp.message().empty()) {
             std::cout << " - " << resp.message();
           }
-          if (resp.has_error_message()) {
-            std::cout << " - 오류: " << resp.error_message();
+          if (!resp.error_message().empty()) {
+            std::cout << " - Error: " << resp.error_message();
           }
           std::cout << std::endl;
         });
       
-      std::cout << "트리거 실행 요청 결과: " << (result ? "성공" : "실패") << std::endl;
+      std::cout << "Trigger execution request result: " << (result ? "Success" : "Failure") << std::endl;
     }
     
-    // 테스트 5: 병렬로 여러 변수 설정 (DEALER 소켓의 비동기 특성 테스트)
-    std::cout << "\n[테스트 " << test_number << ".5] 병렬로 여러 변수 설정 (멀티스레드 테스트)" << std::endl;
+    // Test 5: Set multiple variables in parallel (testing asynchronous nature of DEALER socket)
+    std::cout << "\n[Test " << test_number << ".5] Setting multiple variables in parallel (multithreading test)" << std::endl;
     {
       Timer timer("Parallel SetVariable");
       
-      // 여러 스레드에서 동시에 변수 설정
+      // Set variables simultaneously from multiple threads
       std::vector<std::thread> threads;
       for (int i = 0; i < 5; i++) {
         threads.push_back(std::thread([&client, i, test_number]() {
@@ -222,55 +226,55 @@ int main() {
             case 4: name = "connected"; value = (test_number % 2 == 0); break;
           }
           
-          std::cout << "  스레드 " << i << ": " << name << " 설정 중..." << std::endl;
+          std::cout << "  Thread " << i << ": Setting " << name << "..." << std::endl;
           
-          // 비동기 설정 사용
+          // Use asynchronous setting
           client.SetVariable(name, value, AsyncConnection, 
             [i](const ResponseMessage& resp) {
-              std::cout << "  스레드 " << i << " 응답: " << (resp.success() ? "성공" : "실패") << std::endl;
+              std::cout << "  Thread " << i << " response: " << (resp.success() ? "Success" : "Failure") << std::endl;
             });
           
-          std::cout << "  스레드 " << i << ": " << name << " 설정 요청 완료" << std::endl;
+          std::cout << "  Thread " << i << ": " << name << " setting request completed" << std::endl;
         }));
       }
       
-      // 모든 스레드 완료 기다림
+      // Wait for all threads to complete
       for (auto& t : threads) {
         t.join();
       }
     }
     
-    // 현재 서버 상태 확인
-    std::cout << "\n[테스트 " << test_number << ".6] 현재 서버 변수 상태 확인" << std::endl;
+    // Check current server status
+    std::cout << "\n[Test " << test_number << ".6] Checking current server variable status" << std::endl;
     {
       Timer timer("GetAllVariables");
       auto current_vars = client.GetAllVariables();
       
-      std::cout << "서버 변수 목록:" << std::endl;
+      std::cout << "Server variable list:" << std::endl;
       for (const auto& [name, value] : current_vars) {
         std::cout << "  " << std::setw(12) << name << ": ";
-        printValue(value);
+        PrintValue(value);
         std::cout << std::endl;
       }
     }
     
-    // 다음 테스트 전 대기
-    std::cout << "\n다음 테스트까지 5초 대기 중..." << std::endl;
-    for (int i = 0; i < 5 && gRunning; i++) {
+    // Wait before next test
+    std::cout << "\nWaiting 5 seconds before next test..." << std::endl;
+    for (int i = 0; i < 5 && g_running; i++) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       std::cout << "." << std::flush;
     }
     std::cout << std::endl;
   }
   
-  // 테스트 결과 요약
-  std::cout << "\n===== 테스트 결과 요약 =====" << std::endl;
-  std::cout << "클라이언트 콜백 실행 횟수: " << g_client_callback_counter << std::endl;
+  // Test result summary
+  std::cout << "\n===== Test Result Summary =====" << std::endl;
+  std::cout << "Client callback execution count: " << g_client_callback_counter << std::endl;
   
-  // 연결 종료
-  std::cout << "클라이언트 연결 종료 중..." << std::endl;
+  // Close connection
+  std::cout << "Closing client connection..." << std::endl;
   client.Disconnect();
-  std::cout << "클라이언트 연결 종료 완료" << std::endl;
+  std::cout << "Client connection closed" << std::endl;
   
   return 0;
 }
