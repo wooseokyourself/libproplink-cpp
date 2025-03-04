@@ -383,7 +383,7 @@ void Client::__WorkerLoop() {
             need_reconnect = false;
             connected_ = true;
             
-            // Sends errro message to pending requests.
+            // Sends error message to pending requests.
             std::lock_guard<std::mutex> lock(dealer_mutex_);
             for (auto& [cmd_id, promise] : pending_responses_) {
               ResponseMessage error_response;
@@ -394,7 +394,7 @@ void Client::__WorkerLoop() {
             }
             pending_responses_.clear();
             
-            // Sends errro message to async requests.
+            // Sends error message to async requests.
             for (auto& [cmd_id, callback] : async_responses_) {
               if (callback) {
                 ResponseMessage error_response;

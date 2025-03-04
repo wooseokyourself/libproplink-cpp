@@ -2,6 +2,12 @@
 
 ## Features
 
+- Zero-copy message passing between applications
+- Thread-safe variable access and management
+- Event-driven architecture with trigger support
+- Cross-platform support for Windows and Linux
+- Asynchronous and synchronous communication options
+  
 ## Requirements
 
 - C++17 compiler
@@ -30,15 +36,17 @@
 
 3. Build the library:
    ```powershell
+   # Replace [path\to\vcpkg] with your actual vcpkg installation path.
    mkdir build
    cd build
-   cmake .. -G "Visual Studio 17 2022" -A x64 -T v142 -DCMAKE_TOOLCHAIN_FILE=C:/Users/woose/vcpkg/scripts/buildsystems/vcpkg.cmake
+   cmake .. -G "Visual Studio 17 2022" -A x64 -T v142 -DCMAKE_TOOLCHAIN_FILE=[path\to\vcpkg]\scripts\buildsystems\vcpkg.cmake
    cmake --build . --config Release
    ```
    or
    ```powershell
    ./rebuild.ps1
    ```
+   
 
 ### Linux
 
@@ -63,6 +71,30 @@
    ```
 
 ## Running the Example Program
+
+After building the library, you can run the example programs:
+
+### Windows
+```powershell
+cd build\Release
+.\client_example.exe
+```
+In another terminal:
+```powershell
+cd build\Release
+.\server_example.exe
+```
+
+### Linux
+```bash
+cd build
+./client_example
+```
+In another terminal:
+```bash
+cd build
+./server_example
+```
 
 ## License
 
