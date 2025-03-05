@@ -88,17 +88,17 @@ set(CLIENT_SOURCES
 
 # Header files
 set(COMMON_HEADERS
-    include/core.h
-    include/property.pb.h
+    include/libproplink/core.h
+    include/libproplink/property.pb.h
 )
 
 set(SERVER_HEADERS
-    include/server.h
+    include/libproplink/server.h
     ${COMMON_HEADERS}
 )
 
 set(CLIENT_HEADERS
-    include/client.h
+    include/libproplink/client.h
     ${COMMON_HEADERS}
 )
 

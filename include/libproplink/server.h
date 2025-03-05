@@ -12,8 +12,8 @@
 #include <memory>
 #include <future>
 #include <set>
-#include "core.h"
-#include "thread_pool.h"
+#include "libproplink/core.h"
+#include "libproplink/thread_pool.h"
 
 namespace proplink {
 

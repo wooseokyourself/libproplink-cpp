@@ -21,9 +21,6 @@ CMakeUserPresets.json
 # External projects
 *-prefix/
 
-### VisualStudioCode ###
-.vscode/*
-
 # Local History for Visual Studio Code
 .history/
 

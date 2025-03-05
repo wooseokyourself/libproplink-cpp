@@ -26,19 +26,19 @@ message CommandMessage {
   uint64 command_id = 1;
   CommandType command_type = 2; 
 
-  string variable_name = 3; // Name of variable to retrieve when using GET_VARIABLE command
-  VariableMessage variable = 4; // Complete variable object to set when using SET_VARIABLE command
-  TriggerMessage trigger = 5; // Trigger object to execute when using EXECUTE_TRIGGER command
+  string variable_name = 3;  // for GET_VARIABLE
+  VariableMessage variable = 4; // for SET_VARIABLE
+  TriggerMessage trigger = 5; // for EXECUTE_TRIGGER
 }
 
 message ResponseMessage {
   uint64 command_id = 1;
   bool success = 2;
 
-  string error_message = 3; // Error details when success is false
-  string message = 4; // Optional information message
+  string error_message = 3;
+  string message = 4;
   
-  VariableMessage variable = 5; // Contains requested variable for GET_VARIABLE
-  repeated VariableMessage variables = 6; // Contains all variables for GET_ALL_VARIABLES
-  repeated TriggerMessage triggers = 7; // Contains all triggers for GET_ALL_TRIGGERS
+  VariableMessage variable = 5;  // for GET_VARIABLE
+  repeated VariableMessage variables = 6;  // for GET_ALL_VARIABLES
+  repeated TriggerMessage triggers = 7;  // for GET_ALL_TRIGGERS
 }

@@ -1,4 +1,4 @@
-#include "client.h"
+#include "libproplink/client.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -75,7 +75,7 @@ int main() {
   std::cout << "Connected successfully" << std::endl << std::endl;
   
   // Register callback function (called when variables are changed on the server)
-  auto ClientCallback = [](const Value& value) {
+  auto client_callback = [](const Value& value) {
     int id = ++g_client_callback_counter;
     std::stringstream ss;
     ss << "[Callback " << id << "] Variable changed on server: ";
@@ -95,7 +95,7 @@ int main() {
   std::cout << "Registering callbacks for all variables..." << std::endl;
   auto variables = client.GetAllVariables();
   for (const auto& [name, value] : variables) {
-    client.RegisterCallback(name, ClientCallback);
+    client.RegisterCallback(name, client_callback);
     std::cout << "  - Callback registered for " << name << std::endl;
   }
   

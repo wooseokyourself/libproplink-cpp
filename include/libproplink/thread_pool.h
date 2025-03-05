@@ -18,11 +18,6 @@ class ThreadPool {
 public:
   ThreadPool(size_t threads);
   ~ThreadPool();
-  /**
-  * Enqueues a task to be executed by the thread pool.
-  * Thread-safe: Can be called from multiple threads concurrently.
-  * @throws std::runtime_error if called after the thread pool has been stopped
-  */
   template<class F, class... Args>
   auto Enqueue(F&& f, Args&&... args) 
     -> std::future<typename std::result_of<F(Args...)>::type> {
