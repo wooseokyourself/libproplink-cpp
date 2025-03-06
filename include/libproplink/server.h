@@ -21,7 +21,7 @@ class Server {
  public:
   Server(const std::string& router_endpoint, const std::string& pub_endpoint);
   ~Server();
-  void Start();
+  bool Start();
   void Stop();
   
   // Callback function is only be called when variable is changed by the Client.

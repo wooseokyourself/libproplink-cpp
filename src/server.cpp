@@ -16,10 +16,10 @@ Server::~Server() {
   Stop();
 }
 
-void Server::Start() {
+bool Server::Start() {
   if (running_) {
     std::cout << "Server is already running" << std::endl;
-    return;
+    return true;
   }
   try {
     router_ = std::make_unique<zmq::socket_t>(context_, ZMQ_ROUTER);
@@ -33,16 +33,19 @@ void Server::Start() {
     
     running_ = true;
     worker_thread_ = std::thread(&Server::__WorkerLoop, this);
+    return true;
   } catch (const zmq::error_t& e) {
     std::cerr << "ZeroMQ error in Start(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
     if (router_) router_->close();
     if (publisher_) publisher_->close();
     if (inproc_socket_) inproc_socket_->close();
+    return false;
   } catch (const std::exception& e) {
     std::cerr << "Exception in Start(): " << e.what() << std::endl;
     if (router_) router_->close();
     if (publisher_) publisher_->close();
     if (inproc_socket_) inproc_socket_->close();
+    return false;
   }
 }
 
