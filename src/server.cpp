@@ -124,7 +124,9 @@ void Server::SetVariable(const std::string& name, const Value& value) {
       VariableMessage var;
       var.set_name(name);
       if (std::holds_alternative<double>(value)) {
-        var.set_numeric_value(std::get<double>(value));
+        var.set_double_value(std::get<double>(value));
+      } else if (std::holds_alternative<int>(value)) {
+        var.set_int_value(std::get<int>(value));
       } else if (std::holds_alternative<bool>(value)) {
         var.set_bool_value(std::get<bool>(value));
       } else {
@@ -261,7 +263,9 @@ void Server::__HandleGetVariable(const CommandMessage& command, ResponseMessage&
     prop->set_read_only(it->second.read_only);
     const Value& value = it->second.value;
     if (std::holds_alternative<double>(value)) {
-      prop->set_numeric_value(std::get<double>(value));
+      prop->set_double_value(std::get<double>(value));
+    } else if (std::holds_alternative<int>(value)) {
+      prop->set_int_value(std::get<int>(value));
     } else if (std::holds_alternative<bool>(value)) {
       prop->set_bool_value(std::get<bool>(value));
     } else {
@@ -301,8 +305,8 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
   Value& value = it->second.value;
   bool changed = false;
   if (std::holds_alternative<double>(value)) {
-    if (prop.value_case() == VariableMessage::kNumericValue) {
-      double new_value = prop.numeric_value();
+    if (prop.value_case() == VariableMessage::kDoubleValue) {
+      double new_value = prop.double_value();
       if (std::get<double>(value) != new_value) {
         value = new_value;
         changed = true;
@@ -310,10 +314,24 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
     } else {
       response.set_success(false);
       response.set_error_message("Type mismatch: Variable '" + prop_name + 
-                                "' is numeric, but received non-numeric value");
+                                "' is double, but received non-double value");
       return;
     }
-  } 
+  }
+  else if (std::holds_alternative<int>(value)) {
+    if (prop.value_case() == VariableMessage::kIntValue) {
+      double new_value = prop.int_value();
+      if (std::get<int>(value) != new_value) {
+        value = new_value;
+        changed = true;
+      }
+    } else {
+      response.set_success(false);
+      response.set_error_message("Type mismatch: Variable '" + prop_name + 
+                                "' is int, but received non-int value");
+      return;
+    }
+  }
   else if (std::holds_alternative<bool>(value)) {
     if (prop.value_case() == VariableMessage::kBoolValue) {
       bool new_value = prop.bool_value();
@@ -359,7 +377,9 @@ void Server::__HandleGetAllVariables(const CommandMessage& command, ResponseMess
     prop->set_read_only(it.second.read_only);
     const Value& value = it.second.value;
     if (std::holds_alternative<double>(value)) {
-      prop->set_numeric_value(std::get<double>(value));
+      prop->set_double_value(std::get<double>(value));
+    } else if (std::holds_alternative<int>(value)) {
+      prop->set_int_value(std::get<int>(value));
     } else if (std::holds_alternative<bool>(value)) {
       prop->set_bool_value(std::get<bool>(value));
     } else {

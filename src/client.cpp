@@ -533,8 +533,10 @@ Value Client::__ExtractValue(const VariableMessage& variable) {
   switch (variable.value_case()) {
   case VariableMessage::kStringValue: 
     return variable.string_value();
-  case VariableMessage::kNumericValue: 
-    return variable.numeric_value();
+  case VariableMessage::kDoubleValue: 
+    return variable.double_value();
+  case VariableMessage::kIntValue: 
+    return variable.int_value();
   case VariableMessage::kBoolValue: 
     return variable.bool_value();
   default:
@@ -546,7 +548,9 @@ void Client::__SetValueToVariableMessage(VariableMessage* variable, const Value&
   if (std::holds_alternative<std::string>(value)) {
     variable->set_string_value(std::get<std::string>(value));
   } else if (std::holds_alternative<double>(value)) {
-    variable->set_numeric_value(std::get<double>(value));
+    variable->set_double_value(std::get<double>(value));
+  } else if (std::holds_alternative<int>(value)) {
+    variable->set_int_value(std::get<int>(value));
   } else if (std::holds_alternative<bool>(value)) {
     variable->set_bool_value(std::get<bool>(value));
   }

@@ -33,7 +33,8 @@ class VariableMessageDefaultTypeInternal {
   ::google::protobuf::internal::ExplicitlyConstructed<VariableMessage>
       _instance;
   ::google::protobuf::internal::ArenaStringPtr string_value_;
-  double numeric_value_;
+  double double_value_;
+  ::google::protobuf::int32 int_value_;
   bool bool_value_;
 } _VariableMessage_default_instance_;
 class CommandMessageDefaultTypeInternal {
@@ -131,7 +132,8 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
   ~0u,  // no _weak_field_map_
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::VariableMessage, name_),
   offsetof(::VariableMessageDefaultTypeInternal, string_value_),
-  offsetof(::VariableMessageDefaultTypeInternal, numeric_value_),
+  offsetof(::VariableMessageDefaultTypeInternal, double_value_),
+  offsetof(::VariableMessageDefaultTypeInternal, int_value_),
   offsetof(::VariableMessageDefaultTypeInternal, bool_value_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::VariableMessage, read_only_),
   GOOGLE_PROTOBUF_GENERATED_MESSAGE_FIELD_OFFSET(::VariableMessage, value_),
@@ -161,8 +163,8 @@ const ::google::protobuf::uint32 TableStruct::offsets[] GOOGLE_PROTOBUF_ATTRIBUT
 static const ::google::protobuf::internal::MigrationSchema schemas[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, sizeof(::TriggerMessage)},
   { 6, -1, sizeof(::VariableMessage)},
-  { 17, -1, sizeof(::CommandMessage)},
-  { 27, -1, sizeof(::ResponseMessage)},
+  { 18, -1, sizeof(::CommandMessage)},
+  { 28, -1, sizeof(::ResponseMessage)},
 };
 
 static ::google::protobuf::Message const * const file_default_instances[] = {
@@ -194,26 +196,26 @@ void AddDescriptorsImpl() {
   InitDefaults();
   static const char descriptor[] GOOGLE_PROTOBUF_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
       "\n\016property.proto\"\036\n\016TriggerMessage\022\014\n\004na"
-      "me\030\001 \001(\t\"\202\001\n\017VariableMessage\022\014\n\004name\030\001 \001"
-      "(\t\022\026\n\014string_value\030\003 \001(\tH\000\022\027\n\rnumeric_va"
-      "lue\030\004 \001(\001H\000\022\024\n\nbool_value\030\005 \001(\010H\000\022\021\n\trea"
-      "d_only\030\006 \001(\010B\007\n\005value\"\251\002\n\016CommandMessage"
-      "\022\022\n\ncommand_id\030\001 \001(\004\0221\n\014command_type\030\002 \001"
-      "(\0162\033.CommandMessage.CommandType\022\025\n\rvaria"
-      "ble_name\030\003 \001(\t\022\"\n\010variable\030\004 \001(\0132\020.Varia"
-      "bleMessage\022 \n\007trigger\030\005 \001(\0132\017.TriggerMes"
-      "sage\"s\n\013CommandType\022\020\n\014GET_VARIABLE\020\000\022\020\n"
-      "\014SET_VARIABLE\020\001\022\025\n\021GET_ALL_VARIABLES\020\002\022\024"
-      "\n\020GET_ALL_TRIGGERS\020\003\022\023\n\017EXECUTE_TRIGGER\020"
-      "\004\"\312\001\n\017ResponseMessage\022\022\n\ncommand_id\030\001 \001("
-      "\004\022\017\n\007success\030\002 \001(\010\022\025\n\rerror_message\030\003 \001("
-      "\t\022\017\n\007message\030\004 \001(\t\022\"\n\010variable\030\005 \001(\0132\020.V"
-      "ariableMessage\022#\n\tvariables\030\006 \003(\0132\020.Vari"
-      "ableMessage\022!\n\010triggers\030\007 \003(\0132\017.TriggerM"
-      "essageb\006proto3"
+      "me\030\001 \001(\t\"\226\001\n\017VariableMessage\022\014\n\004name\030\001 \001"
+      "(\t\022\026\n\014string_value\030\003 \001(\tH\000\022\026\n\014double_val"
+      "ue\030\004 \001(\001H\000\022\023\n\tint_value\030\005 \001(\005H\000\022\024\n\nbool_"
+      "value\030\006 \001(\010H\000\022\021\n\tread_only\030\007 \001(\010B\007\n\005valu"
+      "e\"\251\002\n\016CommandMessage\022\022\n\ncommand_id\030\001 \001(\004"
+      "\0221\n\014command_type\030\002 \001(\0162\033.CommandMessage."
+      "CommandType\022\025\n\rvariable_name\030\003 \001(\t\022\"\n\010va"
+      "riable\030\004 \001(\0132\020.VariableMessage\022 \n\007trigge"
+      "r\030\005 \001(\0132\017.TriggerMessage\"s\n\013CommandType\022"
+      "\020\n\014GET_VARIABLE\020\000\022\020\n\014SET_VARIABLE\020\001\022\025\n\021G"
+      "ET_ALL_VARIABLES\020\002\022\024\n\020GET_ALL_TRIGGERS\020\003"
+      "\022\023\n\017EXECUTE_TRIGGER\020\004\"\312\001\n\017ResponseMessag"
+      "e\022\022\n\ncommand_id\030\001 \001(\004\022\017\n\007success\030\002 \001(\010\022\025"
+      "\n\rerror_message\030\003 \001(\t\022\017\n\007message\030\004 \001(\t\022\""
+      "\n\010variable\030\005 \001(\0132\020.VariableMessage\022#\n\tva"
+      "riables\030\006 \003(\0132\020.VariableMessage\022!\n\010trigg"
+      "ers\030\007 \003(\0132\017.TriggerMessageb\006proto3"
   };
   ::google::protobuf::DescriptorPool::InternalAddGeneratedFile(
-      descriptor, 694);
+      descriptor, 714);
   ::google::protobuf::MessageFactory::InternalRegisterGeneratedFile(
     "property.proto", &protobuf_RegisterTypes);
 }
@@ -504,13 +506,15 @@ void TriggerMessage::InternalSwap(TriggerMessage* other) {
 void VariableMessage::InitAsDefaultInstance() {
   ::_VariableMessage_default_instance_.string_value_.UnsafeSetDefault(
       &::google::protobuf::internal::GetEmptyStringAlreadyInited());
-  ::_VariableMessage_default_instance_.numeric_value_ = 0;
+  ::_VariableMessage_default_instance_.double_value_ = 0;
+  ::_VariableMessage_default_instance_.int_value_ = 0;
   ::_VariableMessage_default_instance_.bool_value_ = false;
 }
 #if !defined(_MSC_VER) || _MSC_VER >= 1900
 const int VariableMessage::kNameFieldNumber;
 const int VariableMessage::kStringValueFieldNumber;
-const int VariableMessage::kNumericValueFieldNumber;
+const int VariableMessage::kDoubleValueFieldNumber;
+const int VariableMessage::kIntValueFieldNumber;
 const int VariableMessage::kBoolValueFieldNumber;
 const int VariableMessage::kReadOnlyFieldNumber;
 #endif  // !defined(_MSC_VER) || _MSC_VER >= 1900
@@ -537,8 +541,12 @@ VariableMessage::VariableMessage(const VariableMessage& from)
       set_string_value(from.string_value());
       break;
     }
-    case kNumericValue: {
-      set_numeric_value(from.numeric_value());
+    case kDoubleValue: {
+      set_double_value(from.double_value());
+      break;
+    }
+    case kIntValue: {
+      set_int_value(from.int_value());
       break;
     }
     case kBoolValue: {
@@ -591,7 +599,11 @@ void VariableMessage::clear_value() {
       value_.string_value_.DestroyNoArena(&::google::protobuf::internal::GetEmptyStringAlreadyInited());
       break;
     }
-    case kNumericValue: {
+    case kDoubleValue: {
+      // No need to clear
+      break;
+    }
+    case kIntValue: {
       // No need to clear
       break;
     }
@@ -661,25 +673,40 @@ bool VariableMessage::MergePartialFromCodedStream(
         break;
       }
 
-      // double numeric_value = 4;
+      // double double_value = 4;
       case 4: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
             static_cast< ::google::protobuf::uint8>(33u /* 33 & 0xFF */)) {
           clear_value();
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    double, ::google::protobuf::internal::WireFormatLite::TYPE_DOUBLE>(
-                 input, &value_.numeric_value_)));
-          set_has_numeric_value();
+                 input, &value_.double_value_)));
+          set_has_double_value();
         } else {
           goto handle_unusual;
         }
         break;
       }
 
-      // bool bool_value = 5;
+      // int32 int_value = 5;
       case 5: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
             static_cast< ::google::protobuf::uint8>(40u /* 40 & 0xFF */)) {
+          clear_value();
+          DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
+                   ::google::protobuf::int32, ::google::protobuf::internal::WireFormatLite::TYPE_INT32>(
+                 input, &value_.int_value_)));
+          set_has_int_value();
+        } else {
+          goto handle_unusual;
+        }
+        break;
+      }
+
+      // bool bool_value = 6;
+      case 6: {
+        if (static_cast< ::google::protobuf::uint8>(tag) ==
+            static_cast< ::google::protobuf::uint8>(48u /* 48 & 0xFF */)) {
           clear_value();
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
@@ -691,10 +718,10 @@ bool VariableMessage::MergePartialFromCodedStream(
         break;
       }
 
-      // bool read_only = 6;
-      case 6: {
+      // bool read_only = 7;
+      case 7: {
         if (static_cast< ::google::protobuf::uint8>(tag) ==
-            static_cast< ::google::protobuf::uint8>(48u /* 48 & 0xFF */)) {
+            static_cast< ::google::protobuf::uint8>(56u /* 56 & 0xFF */)) {
 
           DO_((::google::protobuf::internal::WireFormatLite::ReadPrimitive<
                    bool, ::google::protobuf::internal::WireFormatLite::TYPE_BOOL>(
@@ -751,19 +778,24 @@ void VariableMessage::SerializeWithCachedSizes(
       3, this->string_value(), output);
   }
 
-  // double numeric_value = 4;
-  if (has_numeric_value()) {
-    ::google::protobuf::internal::WireFormatLite::WriteDouble(4, this->numeric_value(), output);
+  // double double_value = 4;
+  if (has_double_value()) {
+    ::google::protobuf::internal::WireFormatLite::WriteDouble(4, this->double_value(), output);
   }
 
-  // bool bool_value = 5;
+  // int32 int_value = 5;
+  if (has_int_value()) {
+    ::google::protobuf::internal::WireFormatLite::WriteInt32(5, this->int_value(), output);
+  }
+
+  // bool bool_value = 6;
   if (has_bool_value()) {
-    ::google::protobuf::internal::WireFormatLite::WriteBool(5, this->bool_value(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteBool(6, this->bool_value(), output);
   }
 
-  // bool read_only = 6;
+  // bool read_only = 7;
   if (this->read_only() != 0) {
-    ::google::protobuf::internal::WireFormatLite::WriteBool(6, this->read_only(), output);
+    ::google::protobuf::internal::WireFormatLite::WriteBool(7, this->read_only(), output);
   }
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -802,19 +834,24 @@ void VariableMessage::SerializeWithCachedSizes(
         3, this->string_value(), target);
   }
 
-  // double numeric_value = 4;
-  if (has_numeric_value()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(4, this->numeric_value(), target);
+  // double double_value = 4;
+  if (has_double_value()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteDoubleToArray(4, this->double_value(), target);
   }
 
-  // bool bool_value = 5;
+  // int32 int_value = 5;
+  if (has_int_value()) {
+    target = ::google::protobuf::internal::WireFormatLite::WriteInt32ToArray(5, this->int_value(), target);
+  }
+
+  // bool bool_value = 6;
   if (has_bool_value()) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(5, this->bool_value(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(6, this->bool_value(), target);
   }
 
-  // bool read_only = 6;
+  // bool read_only = 7;
   if (this->read_only() != 0) {
-    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(6, this->read_only(), target);
+    target = ::google::protobuf::internal::WireFormatLite::WriteBoolToArray(7, this->read_only(), target);
   }
 
   if ((_internal_metadata_.have_unknown_fields() &&  ::google::protobuf::internal::GetProto3PreserveUnknownsDefault())) {
@@ -841,7 +878,7 @@ size_t VariableMessage::ByteSizeLong() const {
         this->name());
   }
 
-  // bool read_only = 6;
+  // bool read_only = 7;
   if (this->read_only() != 0) {
     total_size += 1 + 1;
   }
@@ -854,12 +891,19 @@ size_t VariableMessage::ByteSizeLong() const {
           this->string_value());
       break;
     }
-    // double numeric_value = 4;
-    case kNumericValue: {
+    // double double_value = 4;
+    case kDoubleValue: {
       total_size += 1 + 8;
       break;
     }
-    // bool bool_value = 5;
+    // int32 int_value = 5;
+    case kIntValue: {
+      total_size += 1 +
+        ::google::protobuf::internal::WireFormatLite::Int32Size(
+          this->int_value());
+      break;
+    }
+    // bool bool_value = 6;
     case kBoolValue: {
       total_size += 1 + 1;
       break;
@@ -907,8 +951,12 @@ void VariableMessage::MergeFrom(const VariableMessage& from) {
       set_string_value(from.string_value());
       break;
     }
-    case kNumericValue: {
-      set_numeric_value(from.numeric_value());
+    case kDoubleValue: {
+      set_double_value(from.double_value());
+      break;
+    }
+    case kIntValue: {
+      set_int_value(from.int_value());
       break;
     }
     case kBoolValue: {

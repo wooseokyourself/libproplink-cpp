@@ -8,10 +8,11 @@ message VariableMessage {
   string name = 1;
   oneof value {
     string string_value = 3;
-    double numeric_value = 4;
-    bool bool_value = 5;
+    double double_value = 4;
+    int32 int_value = 5;
+    bool bool_value = 6;
   }
-  bool read_only = 6;
+  bool read_only = 7;
 }
 
 message CommandMessage {

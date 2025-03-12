@@ -8,7 +8,7 @@
 
 namespace proplink {
 
-using Value = std::variant<bool, double, std::string>;
+using Value = std::variant<bool, double, int, std::string>;
 struct Variable {
   Variable(const std::string& name, const Value& value, const bool& read_only = false) 
     : name(name), value(value), read_only(read_only) {}

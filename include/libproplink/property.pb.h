@@ -235,8 +235,9 @@ class VariableMessage : public ::google::protobuf::Message /* @@protoc_insertion
 
   enum ValueCase {
     kStringValue = 3,
-    kNumericValue = 4,
-    kBoolValue = 5,
+    kDoubleValue = 4,
+    kIntValue = 5,
+    kBoolValue = 6,
     VALUE_NOT_SET = 0,
   };
 
@@ -312,9 +313,9 @@ class VariableMessage : public ::google::protobuf::Message /* @@protoc_insertion
   ::std::string* release_name();
   void set_allocated_name(::std::string* name);
 
-  // bool read_only = 6;
+  // bool read_only = 7;
   void clear_read_only();
-  static const int kReadOnlyFieldNumber = 6;
+  static const int kReadOnlyFieldNumber = 7;
   bool read_only() const;
   void set_read_only(bool value);
 
@@ -335,21 +336,30 @@ class VariableMessage : public ::google::protobuf::Message /* @@protoc_insertion
   ::std::string* release_string_value();
   void set_allocated_string_value(::std::string* string_value);
 
-  // double numeric_value = 4;
+  // double double_value = 4;
   private:
-  bool has_numeric_value() const;
+  bool has_double_value() const;
   public:
-  void clear_numeric_value();
-  static const int kNumericValueFieldNumber = 4;
-  double numeric_value() const;
-  void set_numeric_value(double value);
+  void clear_double_value();
+  static const int kDoubleValueFieldNumber = 4;
+  double double_value() const;
+  void set_double_value(double value);
 
-  // bool bool_value = 5;
+  // int32 int_value = 5;
+  private:
+  bool has_int_value() const;
+  public:
+  void clear_int_value();
+  static const int kIntValueFieldNumber = 5;
+  ::google::protobuf::int32 int_value() const;
+  void set_int_value(::google::protobuf::int32 value);
+
+  // bool bool_value = 6;
   private:
   bool has_bool_value() const;
   public:
   void clear_bool_value();
-  static const int kBoolValueFieldNumber = 5;
+  static const int kBoolValueFieldNumber = 6;
   bool bool_value() const;
   void set_bool_value(bool value);
 
@@ -358,7 +368,8 @@ class VariableMessage : public ::google::protobuf::Message /* @@protoc_insertion
   // @@protoc_insertion_point(class_scope:VariableMessage)
  private:
   void set_has_string_value();
-  void set_has_numeric_value();
+  void set_has_double_value();
+  void set_has_int_value();
   void set_has_bool_value();
 
   inline bool has_value() const;
@@ -370,7 +381,8 @@ class VariableMessage : public ::google::protobuf::Message /* @@protoc_insertion
   union ValueUnion {
     ValueUnion() {}
     ::google::protobuf::internal::ArenaStringPtr string_value_;
-    double numeric_value_;
+    double double_value_;
+    ::google::protobuf::int32 int_value_;
     bool bool_value_;
   } value_;
   mutable ::google::protobuf::internal::CachedSize _cached_size_;
@@ -954,36 +966,65 @@ inline void VariableMessage::set_allocated_string_value(::std::string* string_va
   // @@protoc_insertion_point(field_set_allocated:VariableMessage.string_value)
 }
 
-// double numeric_value = 4;
-inline bool VariableMessage::has_numeric_value() const {
-  return value_case() == kNumericValue;
+// double double_value = 4;
+inline bool VariableMessage::has_double_value() const {
+  return value_case() == kDoubleValue;
 }
-inline void VariableMessage::set_has_numeric_value() {
-  _oneof_case_[0] = kNumericValue;
+inline void VariableMessage::set_has_double_value() {
+  _oneof_case_[0] = kDoubleValue;
 }
-inline void VariableMessage::clear_numeric_value() {
-  if (has_numeric_value()) {
-    value_.numeric_value_ = 0;
+inline void VariableMessage::clear_double_value() {
+  if (has_double_value()) {
+    value_.double_value_ = 0;
     clear_has_value();
   }
 }
-inline double VariableMessage::numeric_value() const {
-  // @@protoc_insertion_point(field_get:VariableMessage.numeric_value)
-  if (has_numeric_value()) {
-    return value_.numeric_value_;
+inline double VariableMessage::double_value() const {
+  // @@protoc_insertion_point(field_get:VariableMessage.double_value)
+  if (has_double_value()) {
+    return value_.double_value_;
   }
   return 0;
 }
-inline void VariableMessage::set_numeric_value(double value) {
-  if (!has_numeric_value()) {
+inline void VariableMessage::set_double_value(double value) {
+  if (!has_double_value()) {
     clear_value();
-    set_has_numeric_value();
+    set_has_double_value();
   }
-  value_.numeric_value_ = value;
-  // @@protoc_insertion_point(field_set:VariableMessage.numeric_value)
+  value_.double_value_ = value;
+  // @@protoc_insertion_point(field_set:VariableMessage.double_value)
 }
 
-// bool bool_value = 5;
+// int32 int_value = 5;
+inline bool VariableMessage::has_int_value() const {
+  return value_case() == kIntValue;
+}
+inline void VariableMessage::set_has_int_value() {
+  _oneof_case_[0] = kIntValue;
+}
+inline void VariableMessage::clear_int_value() {
+  if (has_int_value()) {
+    value_.int_value_ = 0;
+    clear_has_value();
+  }
+}
+inline ::google::protobuf::int32 VariableMessage::int_value() const {
+  // @@protoc_insertion_point(field_get:VariableMessage.int_value)
+  if (has_int_value()) {
+    return value_.int_value_;
+  }
+  return 0;
+}
+inline void VariableMessage::set_int_value(::google::protobuf::int32 value) {
+  if (!has_int_value()) {
+    clear_value();
+    set_has_int_value();
+  }
+  value_.int_value_ = value;
+  // @@protoc_insertion_point(field_set:VariableMessage.int_value)
+}
+
+// bool bool_value = 6;
 inline bool VariableMessage::has_bool_value() const {
   return value_case() == kBoolValue;
 }
@@ -1012,7 +1053,7 @@ inline void VariableMessage::set_bool_value(bool value) {
   // @@protoc_insertion_point(field_set:VariableMessage.bool_value)
 }
 
-// bool read_only = 6;
+// bool read_only = 7;
 inline void VariableMessage::clear_read_only() {
   read_only_ = false;
 }
