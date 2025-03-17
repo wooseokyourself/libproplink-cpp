@@ -8,7 +8,7 @@
 #include <functional>
 #include <queue>
 #include <future>
-#include "libproplink/core.h"
+#include "core.h"
 
 namespace proplink {
 

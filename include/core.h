@@ -1,7 +1,7 @@
 #ifndef PROPLINK_CORE_H_
 #define PROPLINK_CORE_H_
 
-#include "libproplink/property.pb.h"
+#include "property.pb.h"
 #include <variant>
 
 #define PROPLINK_SOCK_POOL_SIZE 1
