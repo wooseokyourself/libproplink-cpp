@@ -88,17 +88,17 @@ set(CLIENT_SOURCES
 
 # Header files
 set(COMMON_HEADERS
-    include/core.h
-    include/property.pb.h
+    include/proplink/core.h
+    include/proplink/property.pb.h
 )
 
 set(SERVER_HEADERS
-    include/server.h
+    include/proplink/server.h
     ${COMMON_HEADERS}
 )
 
 set(CLIENT_HEADERS
-    include/client.h
+    include/proplink/client.h
     ${COMMON_HEADERS}
 )
 
@@ -142,18 +142,20 @@ endif()
 # Set include directories and link dependencies for server
 target_include_directories(proplink_server
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/proplink
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 # Set include directories and link dependencies for client
 target_include_directories(proplink_client
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/proplink
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
@@ -246,10 +248,9 @@ install(TARGETS proplink_server proplink_client
 )
 
 # Install header files
-install(FILES 
-    ${SERVER_HEADERS}
-    ${CLIENT_HEADERS}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h"
 )
 
 # Install CMake targets
