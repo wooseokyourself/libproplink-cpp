@@ -10,11 +10,29 @@ else()
     find_dependency(Protobuf)
     find_dependency(PkgConfig)
     
-    # pkg-config로 ZeroMQ 찾기
     pkg_check_modules(ZeroMQ REQUIRED libzmq)
     
     find_dependency(Threads)
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
-check_required_components(@PROJECT_NAME@)
+include("${CMAKE_CURRENT_LIST_DIR}/proplinkTargets.cmake")
+
+if(TARGET proplink_server AND NOT TARGET proplink::server)
+  add_library(proplink::server ALIAS proplink_server)
+endif()
+
+if(TARGET proplink_client AND NOT TARGET proplink::client)
+  add_library(proplink::client ALIAS proplink_client)
+endif()
+
+if(NOT TARGET proplink::proplink)
+  add_library(proplink::proplink INTERFACE IMPORTED)
+  if(TARGET proplink_server)
+    target_link_libraries(proplink::proplink INTERFACE proplink_server)
+  endif()
+  if(TARGET proplink_client)
+    target_link_libraries(proplink::proplink INTERFACE proplink_client)
+  endif()
+endif()
+
+check_required_components(proplink)
