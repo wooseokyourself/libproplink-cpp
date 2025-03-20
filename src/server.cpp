@@ -4,12 +4,14 @@
 
 namespace proplink {
 
-Server::Server(const std::string& router_endpoint, const std::string& pub_endpoint)
+Server::Server(const std::string& router_endpoint, 
+               const std::string& pub_endpoint, 
+               const size_t threadpool_size)
     : running_(false),
       router_endpoint_(router_endpoint),
       pub_endpoint_(pub_endpoint),
       context_(1), 
-      thread_pool_(std::thread::hardware_concurrency()) {
+      thread_pool_(threadpool_size) {
 }
 
 Server::~Server() {

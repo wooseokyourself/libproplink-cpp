@@ -19,7 +19,9 @@ namespace proplink {
 
 class Server {
  public:
-  Server(const std::string& router_endpoint, const std::string& pub_endpoint);
+  Server(const std::string& router_endpoint, 
+         const std::string& pub_endpoint, 
+         const size_t threadpool_size = std::thread::hardware_concurrency());
   ~Server();
   bool Start();
   void Stop();
