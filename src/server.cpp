@@ -1,5 +1,5 @@
 #include "server.h"
-#include <iostream>
+//#include <iostream>
 #include <chrono>
 
 namespace proplink {
@@ -20,7 +20,7 @@ Server::~Server() {
 
 bool Server::Start() {
   if (running_) {
-    std::cout << "Server is already running" << std::endl;
+    //std::cout << "Server is already running" << std::endl;
     return true;
   }
   try {
@@ -62,12 +62,12 @@ void Server::Stop() {
     s.send(msg);
 
     if (worker_thread_.joinable()) worker_thread_.join();
-    std::cout << "Server stopped" << std::endl;
+    //std::cout << "Server stopped" << std::endl;
 
     if (router_) router_->close();
     if (publisher_) publisher_->close();
     if (inproc_socket_) inproc_socket_->close();
-    std::cout << "Socket released" << std::endl;
+    //std::cout << "Socket released" << std::endl;
   }
 }
 
@@ -77,7 +77,7 @@ void Server::RegisterVariable(const Variable& variable,
   variables_[variable.name].value = variable.value;
   variables_[variable.name].read_only = variable.read_only;
   variables_[variable.name].callback = callback;
-  std::cout << "Registered property: " << variable.name << std::endl;
+  //std::cout << "Registered property: " << variable.name << std::endl;
 }
 
 void Server::RegisterTrigger(const Trigger& trigger, 
@@ -87,7 +87,7 @@ void Server::RegisterTrigger(const Trigger& trigger,
     triggers_[trigger].callback = callback;
   }
   
-  std::cout << "Registered trigger: " << trigger << std::endl;
+  //std::cout << "Registered trigger: " << trigger << std::endl;
 }
 
 std::unordered_map<std::string, Value> Server::GetVariables() {
@@ -145,7 +145,7 @@ void Server::SetVariable(const std::string& name, const Value& value) {
     }
   }
   else {
-    std::cout << "No named registered variable " << name << std::endl;
+    //std::cout << "No named registered variable " << name << std::endl;
     return;
   }
 }
@@ -203,11 +203,11 @@ void Server::__WorkerLoop() {
       if (inproc_poll.revents & ZMQ_POLLIN) {
         zmq::message_t msg;
         inproc_socket_->recv(&msg);
-        std::cout << "Inproc msg recved: " << msg << std::endl;
+        //std::cout << "Inproc msg recved: " << msg << std::endl;
         break;
       }
     }
-    std::cout << "Worker thread stopped" << std::endl;
+    //std::cout << "Worker thread stopped" << std::endl;
   }
   catch (const zmq::error_t& e) {
     std::cerr << "ZeroMQ error in Start(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
