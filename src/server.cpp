@@ -4,12 +4,26 @@
 
 namespace proplink {
 
+Server::Server(const std::string& internal_router_endpoint, 
+               const std::string& internal_pub_endpoint, 
+               const std::string& external_router_endpoint, 
+               const std::string& external_pub_endpoint, 
+               const size_t threadpool_size)
+  : running_(false),
+  internal_router_endpoint_(internal_router_endpoint),
+  internal_pub_endpoint_(internal_pub_endpoint),
+  external_router_endpoint_(external_router_endpoint),
+  external_pub_endpoint_(external_pub_endpoint),
+  context_(1), 
+  thread_pool_(threadpool_size) {
+}
+
 Server::Server(const std::string& router_endpoint, 
                const std::string& pub_endpoint, 
                const size_t threadpool_size)
     : running_(false),
-      router_endpoint_(router_endpoint),
-      pub_endpoint_(pub_endpoint),
+      internal_router_endpoint_(router_endpoint),
+      internal_pub_endpoint_(pub_endpoint),
       context_(1), 
       thread_pool_(threadpool_size) {
 }
@@ -24,11 +38,19 @@ bool Server::Start() {
     return true;
   }
   try {
-    router_ = std::make_unique<zmq::socket_t>(context_, ZMQ_ROUTER);
-    router_->bind(router_endpoint_);
+    internal_router_ = std::make_unique<zmq::socket_t>(context_, ZMQ_ROUTER);
+    internal_router_->bind(internal_router_endpoint_);
 
-    publisher_ = std::make_unique<zmq::socket_t>(context_, ZMQ_PUB);
-    publisher_->bind(pub_endpoint_);
+    internal_publisher_ = std::make_unique<zmq::socket_t>(context_, ZMQ_PUB);
+    internal_publisher_->bind(internal_pub_endpoint_);
+
+    if (has_external_endpoints_) {
+      external_router_ = std::make_unique<zmq::socket_t>(context_, ZMQ_ROUTER);
+      external_router_->bind(external_router_endpoint_);
+
+      external_publisher_ = std::make_unique<zmq::socket_t>(context_, ZMQ_PUB);
+      external_publisher_->bind(external_pub_endpoint_);
+    }
 
     inproc_socket_ = std::make_unique<zmq::socket_t>(context_, ZMQ_PAIR);
     inproc_socket_->bind("inproc://control");
@@ -38,15 +60,11 @@ bool Server::Start() {
     return true;
   } catch (const zmq::error_t& e) {
     std::cerr << "ZeroMQ error in Start(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
-    if (router_) router_->close();
-    if (publisher_) publisher_->close();
-    if (inproc_socket_) inproc_socket_->close();
+    __CleanupSockets();
     return false;
   } catch (const std::exception& e) {
     std::cerr << "Exception in Start(): " << e.what() << std::endl;
-    if (router_) router_->close();
-    if (publisher_) publisher_->close();
-    if (inproc_socket_) inproc_socket_->close();
+    __CleanupSockets();
     return false;
   }
 }
@@ -62,12 +80,8 @@ void Server::Stop() {
     s.send(msg);
 
     if (worker_thread_.joinable()) worker_thread_.join();
-    //std::cout << "Server stopped" << std::endl;
 
-    if (router_) router_->close();
-    if (publisher_) publisher_->close();
-    if (inproc_socket_) inproc_socket_->close();
-    //std::cout << "Socket released" << std::endl;
+    __CleanupSockets();
   }
 }
 
@@ -77,7 +91,6 @@ void Server::RegisterVariable(const Variable& variable,
   variables_[variable.name].value = variable.value;
   variables_[variable.name].read_only = variable.read_only;
   variables_[variable.name].callback = callback;
-  //std::cout << "Registered property: " << variable.name << std::endl;
 }
 
 void Server::RegisterTrigger(const Trigger& trigger, 
@@ -86,8 +99,6 @@ void Server::RegisterTrigger(const Trigger& trigger,
     std::lock_guard<std::mutex> lock(triggers_mutex_);
     triggers_[trigger].callback = callback;
   }
-  
-  //std::cout << "Registered trigger: " << trigger << std::endl;
 }
 
 std::unordered_map<std::string, Value> Server::GetVariables() {
@@ -135,91 +146,119 @@ void Server::SetVariable(const std::string& name, const Value& value) {
         var.set_string_value(std::get<std::string>(value));
       }
       var.set_read_only(it->second.read_only);
-      zmq::message_t msg(var.ByteSizeLong());
-      if (!var.SerializeToArray(msg.data(), msg.size())) {
-        std::cerr << "Failed to serialize publisher message: ByteSizeLong=" << var.ByteSizeLong() 
-          << ", zmq::message_t::size=" << msg.size() << std::endl;
+
+      // Serialize
+      const size_t msg_size = var.ByteSizeLong();
+      std::vector<char> serialized_data(msg_size);
+      if (!var.SerializeToArray(serialized_data.data(), msg_size)) {
+        std::cerr << "Failed to serialize publisher message" << std::endl;
         return;
       }
-      publisher_->send(msg);
+
+      zmq::message_t internal_msg(msg_size);
+      memcpy(internal_msg.data(), serialized_data.data(), msg_size);
+      internal_publisher_->send(internal_msg);
+      
+      if (has_external_endpoints_ && external_publisher_) {
+        zmq::message_t external_msg(msg_size);
+        memcpy(external_msg.data(), serialized_data.data(), msg_size);
+        external_publisher_->send(external_msg);
+      }
     }
   }
   else {
-    //std::cout << "No named registered variable " << name << std::endl;
     return;
   }
 }
 
+void Server::__CleanupSockets() {
+  if (internal_router_) internal_router_->close();
+  if (internal_publisher_) internal_publisher_->close();
+  if (external_router_) external_router_->close();
+  if (external_publisher_) external_publisher_->close();
+  if (inproc_socket_) inproc_socket_->close();
+}
+
 void Server::__WorkerLoop() {
   try {
-    zmq::pollitem_t items[] = {
-      { static_cast<void*>(*router_), 0, ZMQ_POLLIN, 0 },
-      { static_cast<void*>(*inproc_socket_), 0, ZMQ_POLLIN, 0 }
-    };
-    zmq::pollitem_t& router_poll = items[0];
-    zmq::pollitem_t& inproc_poll = items[1];
-    
+    std::vector<zmq::pollitem_t> items;
+
+    // internal socket
+    items.push_back({ static_cast<void*>(*internal_router_), 0, ZMQ_POLLIN, 0 });
+    const size_t INTERNAL_ROUTER_INDEX = 0;
+
+    // external socket
+    size_t EXTERNAL_ROUTER_INDEX = 0;
+    if (has_external_endpoints_) {
+      items.push_back({ static_cast<void*>(*external_router_), 0, ZMQ_POLLIN, 0 });
+      EXTERNAL_ROUTER_INDEX = items.size() - 1;
+    }
+
+    // control socket
+    items.push_back({ static_cast<void*>(*inproc_socket_), 0, ZMQ_POLLIN, 0 });
+    const size_t CONTROL_SOCKET_INDEX = items.size() - 1;
+
     while (running_) {
-      zmq::poll(items, 2, -1);
+      zmq::poll(items.data(), items.size(), -1);
 
       // Checks req/res sockets
-      if (router_poll.revents & ZMQ_POLLIN) {
-        zmq::message_t identity;
-        zmq::message_t empty;
-        zmq::message_t request;
-        
-        router_->recv(&identity);
-        router_->recv(&empty);
-        router_->recv(&request);
+      if (items[INTERNAL_ROUTER_INDEX].revents & ZMQ_POLLIN) {
+        __HandleRouterMessage(internal_router_.get());
+      }
 
-        CommandMessage command;
-        command.ParseFromArray(request.data(), request.size());
-        // zmq::message_t cannot be copied, so copy its data.
-        std::vector<char> identity_data(static_cast<char*>(identity.data()), 
-                                        static_cast<char*>(identity.data()) + identity.size());
-        std::vector<char> empty_data(static_cast<char*>(empty.data()), 
-                                    static_cast<char*>(empty.data()) + empty.size());
-
-        thread_pool_.Enqueue([this, command, identity_data, empty_data]() {
-          ResponseMessage response = this->__HandleCommand(command);
-          
-          zmq::message_t reply(response.ByteSizeLong());
-          response.SerializeToArray(reply.data(), reply.size());
-          
-          zmq::message_t identity_msg(identity_data.size());
-          memcpy(identity_msg.data(), identity_data.data(), identity_data.size());
-          
-          zmq::message_t empty_msg(empty_data.size());
-          memcpy(empty_msg.data(), empty_data.data(), empty_data.size());
-          
-          std::lock_guard<std::mutex> lock(this->router_mutex_);
-          this->router_->send(identity_msg, ZMQ_SNDMORE);
-          this->router_->send(empty_msg, ZMQ_SNDMORE);
-          this->router_->send(reply);
-        });
+      if (has_external_endpoints_ && (items[EXTERNAL_ROUTER_INDEX].revents & ZMQ_POLLIN)) {
+        __HandleRouterMessage(external_router_.get());
       }
 
       // Checks control sockets
-      if (inproc_poll.revents & ZMQ_POLLIN) {
+      if (items[CONTROL_SOCKET_INDEX].revents & ZMQ_POLLIN) {
         zmq::message_t msg;
         inproc_socket_->recv(&msg);
-        //std::cout << "Inproc msg recved: " << msg << std::endl;
         break;
       }
     }
-    //std::cout << "Worker thread stopped" << std::endl;
-  }
-  catch (const zmq::error_t& e) {
+  } catch (const zmq::error_t& e) {
     std::cerr << "ZeroMQ error in Start(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
-    if (router_) router_->close();
-    if (publisher_) publisher_->close();
-    if (inproc_socket_) inproc_socket_->close();
   } catch (const std::exception& e) {
     std::cerr << "Exception in Start(): " << e.what() << std::endl;
-    if (router_) router_->close();
-    if (publisher_) publisher_->close();
-    if (inproc_socket_) inproc_socket_->close();
   }
+}
+
+void Server::__HandleRouterMessage(zmq::socket_t* router_socket) {
+  zmq::message_t identity;
+  zmq::message_t empty;
+  zmq::message_t request;
+  
+  router_socket->recv(&identity);
+  router_socket->recv(&empty);
+  router_socket->recv(&request);
+
+  CommandMessage command;
+  command.ParseFromArray(request.data(), request.size());
+  
+  // zmq::message_t cannot be copied, so copy its data.
+  std::vector<char> identity_data(static_cast<char*>(identity.data()), 
+                                static_cast<char*>(identity.data()) + identity.size());
+  std::vector<char> empty_data(static_cast<char*>(empty.data()), 
+                              static_cast<char*>(empty.data()) + empty.size());
+
+  thread_pool_.Enqueue([this, command, identity_data, empty_data, router_socket]() {
+    ResponseMessage response = this->__HandleCommand(command);
+    
+    zmq::message_t reply(response.ByteSizeLong());
+    response.SerializeToArray(reply.data(), reply.size());
+    
+    zmq::message_t identity_msg(identity_data.size());
+    memcpy(identity_msg.data(), identity_data.data(), identity_data.size());
+    
+    zmq::message_t empty_msg(empty_data.size());
+    memcpy(empty_msg.data(), empty_data.data(), empty_data.size());
+    
+    std::lock_guard<std::mutex> lock(this->router_mutex_);
+    router_socket->send(identity_msg, ZMQ_SNDMORE);
+    router_socket->send(empty_msg, ZMQ_SNDMORE);
+    router_socket->send(reply);
+  });
 }
 
 ResponseMessage Server::__HandleCommand(const CommandMessage& command) {

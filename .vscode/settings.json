@@ -88,6 +88,18 @@
     "unordered_set": "cpp",
     "variant": "cpp",
     "csignal": "cpp",
-    "*.rh": "cpp"
+    "*.rh": "cpp",
+    "cstdarg": "cpp",
+    "cwctype": "cpp",
+    "hash_map": "cpp",
+    "hash_set": "cpp",
+    "*.tcc": "cpp",
+    "codecvt": "cpp",
+    "complex": "cpp",
+    "memory_resource": "cpp",
+    "string_view": "cpp",
+    "fstream": "cpp",
+    "typeindex": "cpp",
+    "*.ipp": "cpp"
   }
 }

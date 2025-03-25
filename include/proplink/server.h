@@ -19,6 +19,11 @@ namespace proplink {
 
 class Server {
  public:
+  Server(const std::string& internal_router_endpoint, 
+         const std::string& internal_pub_endpoint,
+         const std::string& external_router_endpoint,
+         const std::string& external_pub_endpoint, 
+         const size_t threadpool_size = std::thread::hardware_concurrency()); 
   Server(const std::string& router_endpoint, 
          const std::string& pub_endpoint, 
          const size_t threadpool_size = std::thread::hardware_concurrency());
@@ -54,7 +59,9 @@ private:
   };
 
 private:
+  void __CleanupSockets();
   void __WorkerLoop();
+  void __HandleRouterMessage(zmq::socket_t* router_socket);
   ResponseMessage __HandleCommand(const CommandMessage& command);
   void __HandleGetVariable(const CommandMessage& command, ResponseMessage& response);
   void __HandleSetVariable(const CommandMessage& command, ResponseMessage& response);
@@ -63,13 +70,22 @@ private:
   void __HandleExecuteTrigger(const CommandMessage& command, ResponseMessage& response);
   bool __ExecuteTrigger(const std::string& trigger_name);
 
+private:
   zmq::context_t context_;
-  std::unique_ptr<zmq::socket_t> router_;
-  std::mutex router_mutex_;
-  std::unique_ptr<zmq::socket_t> publisher_; 
+  bool has_external_endpoints_;
   std::unique_ptr<zmq::socket_t> inproc_socket_;
-  std::string router_endpoint_;
-  std::string pub_endpoint_;
+  
+  std::string internal_router_endpoint_;
+  std::string external_router_endpoint_;
+  std::unique_ptr<zmq::socket_t> internal_router_;
+  std::unique_ptr<zmq::socket_t> external_router_;
+
+  std::mutex router_mutex_;
+
+  std::string internal_pub_endpoint_;
+  std::string external_pub_endpoint_;
+  std::unique_ptr<zmq::socket_t> internal_publisher_; 
+  std::unique_ptr<zmq::socket_t> external_publisher_;
   
   ThreadPool thread_pool_;
   std::thread worker_thread_;
