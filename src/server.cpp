@@ -15,6 +15,7 @@ Server::Server(const std::string& internal_router_endpoint,
   external_router_endpoint_(external_router_endpoint),
   external_pub_endpoint_(external_pub_endpoint),
   context_(1), 
+  has_external_endpoints_(true), 
   thread_pool_(threadpool_size) {
 }
 
@@ -25,6 +26,7 @@ Server::Server(const std::string& router_endpoint,
       internal_router_endpoint_(router_endpoint),
       internal_pub_endpoint_(pub_endpoint),
       context_(1), 
+      has_external_endpoints_(false), 
       thread_pool_(threadpool_size) {
 }
 
