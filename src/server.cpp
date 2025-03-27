@@ -367,7 +367,7 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
     }
     else if (std::holds_alternative<int>(value)) {
       if (prop.value_case() == VariableMessage::kIntValue) {
-        double new_value = prop.int_value();
+        int new_value = prop.int_value();
         if (std::get<int>(value) != new_value) {
           value = new_value;
           changed = true;

@@ -466,9 +466,9 @@ void Client::__WorkerLoop() {
           std::lock_guard<std::mutex> lock(dealer_mutex_);
           auto it = async_responses_.find(cmd_id);
           if (it != async_responses_.end()) {
-              // 콜백 함수 호출
-              it->second(response);
-              async_responses_.erase(it);
+            // 콜백 함수 호출
+            it->second(response);
+            async_responses_.erase(it);
           }
         }
       }

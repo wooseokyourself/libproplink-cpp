@@ -31,8 +31,18 @@ class Server {
   bool Start();
   void Stop();
   
-  // Callback function is only be called when variable is changed by the Client.
-  // If connection_option = SyncConnection, socket listening is blocked until the callback returns.
+  /**
+   * Callback function is only be called when variable is changed by the Client.
+   * Note on RegisterVariable type determination:
+   * The type of Variable is determined at compile time based on the literal value format:
+   * - For double values, always include the decimal point (e.g., Variable("name", 1.0))
+   * - For integer values, omit the decimal point (e.g., Variable("name", 1))
+   * - Alternatively, use explicit type casting: double(1) or int(1)
+   * 
+   * IMPORTANT: Using the wrong format will cause type mismatch errors when calling SetVariable later.
+   * Example: If a variable is registered as an int, calling SetVariable("name", 0.3) will fail
+   * with a type mismatch error.
+   */
   void RegisterVariable(const Variable& variable, 
                         VariableChangedCallback callback = nullptr);
   
