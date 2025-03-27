@@ -22,9 +22,12 @@ public:
   std::unordered_map<std::string, Value> GetAllVariables();
   std::vector<std::string> GetAllTriggers();
 
-  // @return Whether the command was successfully sent.
+  // @return Whether the command was successfully sent. 
+  // It does not guarantee that the actual value change was successful 
+  // (e.g. the read_only property returns true because the "send" of the command was successful, even if the value did not change).
   // @param connection_option Whether to wait for the server's response.
   // @param callback Callback to be called after the server responds.
+  // It won't check the variable is read_only or not. 
   bool SetVariable(const std::string& name, const Value& value,
                    const ConnectionOptions connection_option = AsyncConnection, 
                    std::function<void(const ResponseMessage&)> callback = std::function<void(const ResponseMessage&)>());

@@ -36,7 +36,6 @@ Server::~Server() {
 
 bool Server::Start() {
   if (running_) {
-    //std::cout << "Server is already running" << std::endl;
     return true;
   }
   try {
@@ -266,7 +265,7 @@ void Server::__HandleRouterMessage(zmq::socket_t* router_socket) {
 ResponseMessage Server::__HandleCommand(const CommandMessage& command) {
   ResponseMessage response;
   response.set_command_id(command.command_id());
-  
+
   switch (command.command_type()) {
     case CommandMessage::GET_VARIABLE:
       __HandleGetVariable(command, response);
@@ -329,83 +328,102 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
   
   const VariableMessage& prop = command.variable();
   std::string prop_name = prop.name();
-  
-  std::lock_guard<std::mutex> lock(variables_mutex_);
-  auto it = variables_.find(prop_name);
-  
-  if (it == variables_.end()) {
-    response.set_success(false);
-    response.set_error_message("Variable not found: " + prop_name);
-    return;
-  }
-  
-  if (it->second.read_only) {
-    response.set_success(false);
-    response.set_error_message("Variable " + prop_name + " is READ ONLY");
-    return;
-  }
-
-  Value& value = it->second.value;
+  Value value_cpy;
   bool changed = false;
-  if (std::holds_alternative<double>(value)) {
-    if (prop.value_case() == VariableMessage::kDoubleValue) {
-      double new_value = prop.double_value();
-      if (std::get<double>(value) != new_value) {
-        value = new_value;
-        changed = true;
-      }
-    } else {
+  VariableChangedCallback callback;
+  {
+    std::lock_guard<std::mutex> lock(variables_mutex_);
+    auto it = variables_.find(prop_name);
+    
+    if (it == variables_.end()) {
       response.set_success(false);
-      response.set_error_message("Type mismatch: Variable '" + prop_name + 
-                                "' is double, but received non-double value");
+      response.set_error_message("Variable not found: " + prop_name);
       return;
     }
-  }
-  else if (std::holds_alternative<int>(value)) {
-    if (prop.value_case() == VariableMessage::kIntValue) {
-      double new_value = prop.int_value();
-      if (std::get<int>(value) != new_value) {
-        value = new_value;
-        changed = true;
-      }
-    } else {
+    
+    if (it->second.read_only) {
       response.set_success(false);
-      response.set_error_message("Type mismatch: Variable '" + prop_name + 
-                                "' is int, but received non-int value");
+      response.set_error_message("Variable " + prop_name + " is READ ONLY");
       return;
     }
-  }
-  else if (std::holds_alternative<bool>(value)) {
-    if (prop.value_case() == VariableMessage::kBoolValue) {
-      bool new_value = prop.bool_value();
-      if (std::get<bool>(value) != new_value) {
-        value = new_value;
-        changed = true;
+
+    Value& value = it->second.value;
+    callback = it->second.callback;
+    if (callback) value_cpy = it->second.value;
+
+    if (std::holds_alternative<double>(value)) {
+      if (prop.value_case() == VariableMessage::kDoubleValue) {
+        double new_value = prop.double_value();
+        if (std::get<double>(value) != new_value) {
+          value = new_value;
+          changed = true;
+        }
+      } else {
+        response.set_success(false);
+        response.set_error_message("Type mismatch: Variable '" + prop_name + 
+                                  "' is double, but received non-double value");
+        return;
       }
-    } else {
-      response.set_success(false);
-      response.set_error_message("Type mismatch: Variable '" + prop_name + 
-                                "' is boolean, but received non-boolean value");
-      return;
     }
-  } 
-  else if (std::holds_alternative<std::string>(value)) {
-    if (prop.value_case() == VariableMessage::kStringValue) {
-      std::string new_value = prop.string_value();
-      if (std::get<std::string>(value) != new_value) {
-        value = new_value;
-        changed = true;
+    else if (std::holds_alternative<int>(value)) {
+      if (prop.value_case() == VariableMessage::kIntValue) {
+        double new_value = prop.int_value();
+        if (std::get<int>(value) != new_value) {
+          value = new_value;
+          changed = true;
+        }
+      } else {
+        response.set_success(false);
+        response.set_error_message("Type mismatch: Variable '" + prop_name + 
+                                  "' is int, but received non-int value");
+        return;
       }
-    } else {
-      response.set_success(false);
-      response.set_error_message("Type mismatch: Variable '" + prop_name + 
-                                "' is string, but received non-string value");
-      return;
+    }
+    else if (std::holds_alternative<bool>(value)) {
+      if (prop.value_case() == VariableMessage::kBoolValue) {
+        bool new_value = prop.bool_value();
+        if (std::get<bool>(value) != new_value) {
+          value = new_value;
+          changed = true;
+        }
+      } else {
+        response.set_success(false);
+        response.set_error_message("Type mismatch: Variable '" + prop_name + 
+                                  "' is boolean, but received non-boolean value");
+        return;
+      }
+    } 
+    else if (std::holds_alternative<std::string>(value)) {
+      if (prop.value_case() == VariableMessage::kStringValue) {
+        std::string new_value = prop.string_value();
+        if (std::get<std::string>(value) != new_value) {
+          value = new_value;
+          changed = true;
+        }
+      } else {
+        response.set_success(false);
+        response.set_error_message("Type mismatch: Variable '" + prop_name + 
+                                  "' is string, but received non-string value");
+        return;
+      }
     }
   }
 
-  if (changed && it->second.callback)
-    it->second.callback(it->second.value);
+  if (changed && callback) {
+    try {
+      callback(value_cpy);
+    } catch (const std::bad_variant_access& e) {
+      std::cerr << "Exception in SetVariable: " << e.what() << std::endl;
+      response.set_success(false);
+      response.set_error_message("Exception occured in server-side callback");
+      return;
+    } catch (const std::exception& e) {
+      std::cerr << "Exception in SetVariable: " << e.what() << std::endl;
+      response.set_success(false);
+      response.set_error_message("Exception occured in server-side callback");
+      return;
+    }
+  }
 
   response.set_success(true);
   response.set_message("Variable updated: " + prop_name);
