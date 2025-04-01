@@ -23,16 +23,16 @@ bool Client::Connect() {
   }
   
   try {
-    std::cout << "Creating socket to connect to " << dealer_endpoint_ << std::endl;
+    //std::cout << "Creating socket to connect to " << dealer_endpoint_ << std::endl;
     dealer_ = std::make_unique<zmq::socket_t>(context_, ZMQ_DEALER);
     dealer_->setsockopt(ZMQ_RCVTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
     dealer_->setsockopt(ZMQ_SNDTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
     dealer_->connect(dealer_endpoint_);
     
-    std::cout << "Creating socket to connect to " << sub_endpoint_ << std::endl;
+    //std::cout << "Creating socket to connect to " << sub_endpoint_ << std::endl;
     subscriber_ = std::make_unique<zmq::socket_t>(context_, ZMQ_SUB);
     subscriber_->setsockopt(ZMQ_SUBSCRIBE, "", 0); // Subscribes all messages.
-    std::cout << "Connecting to server at " << sub_endpoint_ << std::endl;
+    //std::cout << "Connecting to server at " << sub_endpoint_ << std::endl;
     subscriber_->connect(sub_endpoint_);
     
     inproc_socket_ = std::make_unique<zmq::socket_t>(context_, ZMQ_PAIR);
@@ -40,7 +40,7 @@ bool Client::Connect() {
 
     if (dealer_->connected() && subscriber_->connected()) {
       connected_ = true;
-      std::cout << "Connected to server" << std::endl;
+      //std::cout << "Connected to server" << std::endl;
       running_ = true;
       worker_thread_ = std::thread(&Client::__WorkerLoop, this);
     } else {
@@ -78,12 +78,12 @@ void Client::Disconnect() {
     s.send(msg);
 
     if (worker_thread_.joinable()) worker_thread_.join();
-    std::cout << "Client subscriber stopped" << std::endl;
+    //std::cout << "Client subscriber stopped" << std::endl;
 
     if (dealer_) dealer_->close();
     if (subscriber_) subscriber_->close();
     if (inproc_socket_) inproc_socket_->close();
-    std::cout << "Socket released" << std::endl;
+    //std::cout << "Socket released" << std::endl;
   }
   if (connected_) connected_ = false;
 }
@@ -186,9 +186,9 @@ bool Client::SetVariable(const std::string& name,
     __SendCommandAsync(cmd, callback);
     return true;
   } else {
-    std::cout << "Client::SetVariable calling __SendCommandSync" << std::endl;
+    //std::cout << "Client::SetVariable calling __SendCommandSync" << std::endl;
     ResponseMessage response = __SendCommandSync(cmd);
-    std::cout << "Client::SetVariable __SendCommandSync returns response" << std::endl;
+    //std::cout << "Client::SetVariable __SendCommandSync returns response" << std::endl;
     callback(response);
     return true;
   }
@@ -234,6 +234,7 @@ uint64_t Client::__GetNextCommandId() {
 ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
   const uint64_t cmd_id = cmd.command_id();
   
+  /*
   std::cout << "__SendCommandSync id=" << cmd.command_id() << " : ";
   switch (cmd.command_type()) {
     case CommandMessage::GET_ALL_TRIGGERS: 
@@ -247,6 +248,7 @@ ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
     case CommandMessage::EXECUTE_TRIGGER: 
       std::cout << "EXECUTE_TRIGGER" << std::endl; break;
   }
+  */
   
   std::promise<ResponseMessage> response_promise;
   std::future<ResponseMessage> response_future = response_promise.get_future();
@@ -303,6 +305,7 @@ void Client::__SendCommandAsync(const CommandMessage& cmd,
                                 std::function<void(const ResponseMessage&)> callback) {
   const int64_t cmd_id = cmd.command_id();
 
+  /*
   std::cout << "__SendCommandAsync id=" << cmd.command_id() << " : ";
   switch (cmd.command_type()) {
     case CommandMessage::GET_ALL_TRIGGERS: 
@@ -316,6 +319,7 @@ void Client::__SendCommandAsync(const CommandMessage& cmd,
     case CommandMessage::EXECUTE_TRIGGER: 
       std::cout << "EXECUTE_TRIGGER" << std::endl; break;
   }
+  */
 
   {
     std::lock_guard<std::mutex> lock(dealer_mutex_);
@@ -328,7 +332,7 @@ void Client::__SendCommandAsync(const CommandMessage& cmd,
 }
 
 void Client::__WorkerLoop() {
-  std::cout << "Client started with endpoints: " << sub_endpoint_ << " (SUB)" << std::endl;
+  //std::cout << "Client started with endpoints: " << sub_endpoint_ << " (SUB)" << std::endl;
             
   zmq::pollitem_t items[] = {
     { static_cast<void*>(*dealer_), 0, ZMQ_POLLIN, 0 },
@@ -359,8 +363,7 @@ void Client::__WorkerLoop() {
             now - last_reconnect_time).count();
         
         if (elapsed >= delay_ms) {
-          std::cout << "Attempting to reconnect (attempt " << reconnect_attempts + 1 
-                    << " of " << max_reconnect_attempts << ")..." << std::endl;
+          //std::cout << "Attempting to reconnect (attempt " << reconnect_attempts + 1 << " of " << max_reconnect_attempts << ")..." << std::endl;
           
           try {
             dealer_->close();
@@ -379,7 +382,7 @@ void Client::__WorkerLoop() {
             items[0] = { static_cast<void*>(*dealer_), 0, ZMQ_POLLIN, 0 };
             items[1] = { static_cast<void*>(*subscriber_), 0, ZMQ_POLLIN, 0 };
             
-            std::cout << "Reconnection successful" << std::endl;
+            // std::cout << "Reconnection successful" << std::endl;
             reconnect_attempts = 0;
             need_reconnect = false;
             connected_ = true;
@@ -523,11 +526,11 @@ void Client::__WorkerLoop() {
     if (inproc_socket_poll.revents & ZMQ_POLLIN) {
       zmq::message_t msg;
       inproc_socket_->recv(&msg);
-      std::cout << "Inproc msg recved: " << msg << std::endl;
+      //std::cout << "Inproc msg recved: " << msg << std::endl;
       break;
     }
   }
-  std::cout << "Worker thread stopped" << std::endl;
+  //std::cout << "Worker thread stopped" << std::endl;
 }
 
 Value Client::__ExtractValue(const VariableMessage& variable) {

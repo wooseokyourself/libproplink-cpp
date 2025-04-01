@@ -407,6 +407,8 @@ void Server::__HandleSetVariable(const CommandMessage& command, ResponseMessage&
         return;
       }
     }
+
+    value_cpy = value;
   }
 
   if (changed && callback) {
