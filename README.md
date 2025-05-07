@@ -22,7 +22,7 @@ PropLink is a C++ client-server communication library designed for efficient int
 
 - C++17 compiler
 - CMake 3.10 or higher
-- Protocol Buffers 3.6.x
+- Protocol Buffers 3.6.x or higher
 - ZeroMQ 4.3+ and cppzmq
 
 ## Building the Library
@@ -33,7 +33,7 @@ PropLink is a C++ client-server communication library designed for efficient int
    - Visual Studio 2019 or later
    - CMake 3.10+
     ```powershell
-    vcpkg install protobuf:x64-windows-static --version 3.6.1
+    vcpkg install protobuf:x64-windows-static
     vcpkg install zeromq:x64-windows-static
     vcpkg install cppzmq:x64-windows-static
     ```
@@ -44,7 +44,14 @@ PropLink is a C++ client-server communication library designed for efficient int
    cd libproplink-cpp
    ```
 
-3. Build the library:
+3. Generate protobuf files and move them to the correct directories(run from the libproplink-cpp project root):
+   ```powershell
+    protoc.exe --cpp_out=. property.proto
+    mv property.pb.cc src/property.pb.cc
+    mv property.pb.h include/proplink/property.pb.h
+   ```
+
+4. Build the library:
    ```powershell
    mkdir build
    cd build
@@ -70,7 +77,14 @@ PropLink is a C++ client-server communication library designed for efficient int
    cd libproplink-cpp
    ```
 
-3. Build the library:
+3. Generate protobuf files and move them to the correct directories(run from the libproplink-cpp project root):
+   ```bash
+    protoc --cpp_out=. property.proto
+    mv property.pb.cc src/property.pb.cc
+    mv property.pb.h include/proplink/property.pb.h
+   ```
+
+4. Build the library:
    ```bash
    mkdir build
    cd build
@@ -78,7 +92,7 @@ PropLink is a C++ client-server communication library designed for efficient int
    make
    ```
 
-4. Install the library (optional):
+5. Install the library (optional):
    ```bash
    sudo make install
    ```
