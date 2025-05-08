@@ -2,7 +2,60 @@
 #include <iostream>
 #include <chrono>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h>
+#include <random>
+#include <sstream>
+#include <iomanip>
+#include <IPTypes.h>
+#include <iphlpapi.h>
+#endif
+
 namespace proplink {
+
+#ifdef _WIN32
+std::string GenerateUniqueIdentity() {
+  std::stringstream ss;
+  
+  char computerName[MAX_COMPUTERNAME_LENGTH + 1];
+  DWORD size = sizeof(computerName) / sizeof(computerName[0]);
+  if (GetComputerNameA(computerName, &size)) {
+    ss << computerName << "_";
+  } else {
+    ss << "unknown_host_";
+  }
+  
+  IP_ADAPTER_INFO adapterInfo[16];
+  DWORD adapterInfoSize = sizeof(adapterInfo);
+  if (GetAdaptersInfo(adapterInfo, &adapterInfoSize) == ERROR_SUCCESS) {
+    PIP_ADAPTER_INFO pAdapter = adapterInfo;
+    if (pAdapter) {
+      for (UINT i = 0; i < pAdapter->AddressLength; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') 
+            << static_cast<int>(pAdapter->Address[i]);
+      }
+      ss << "_";
+    }
+  }
+  
+  ss << "pid" << GetCurrentProcessId() << "_";
+  
+  ss << "tid" << GetCurrentThreadId() << "_";
+  
+  auto now = std::chrono::system_clock::now();
+  auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+  auto value = now_ms.time_since_epoch().count();
+  ss << "t" << value << "_";
+  
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> distrib(1000, 9999);
+  ss << "r" << distrib(gen);
+  
+  return ss.str();
+}
+#endif
 
 Client::Client(const std::string& dealer_endpoint, const std::string& sub_endpoint)
     : dealer_endpoint_(dealer_endpoint),
@@ -25,9 +78,22 @@ bool Client::Connect() {
   try {
     //std::cout << "Creating socket to connect to " << dealer_endpoint_ << std::endl;
     dealer_ = std::make_unique<zmq::socket_t>(context_, ZMQ_DEALER);
+
+    int hwm = 1000;
+    dealer_->setsockopt(ZMQ_SNDHWM, &hwm, sizeof(hwm));
+    dealer_->setsockopt(ZMQ_RCVHWM, &hwm, sizeof(hwm));
+
     dealer_->setsockopt(ZMQ_RCVTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
     dealer_->setsockopt(ZMQ_SNDTIMEO, &request_timeout_ms_, sizeof(request_timeout_ms_));
+
+#ifdef _WIN32
+    std::string identity = GenerateUniqueIdentity();
+    dealer_->setsockopt(ZMQ_IDENTITY, identity.c_str(), identity.length());
+#endif
+
     dealer_->connect(dealer_endpoint_);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
     //std::cout << "Creating socket to connect to " << sub_endpoint_ << std::endl;
     subscriber_ = std::make_unique<zmq::socket_t>(context_, ZMQ_SUB);
@@ -233,7 +299,6 @@ uint64_t Client::__GetNextCommandId() {
 
 ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
   const uint64_t cmd_id = cmd.command_id();
-  
   /*
   std::cout << "__SendCommandSync id=" << cmd.command_id() << " : ";
   switch (cmd.command_type()) {
@@ -249,7 +314,6 @@ ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
       std::cout << "EXECUTE_TRIGGER" << std::endl; break;
   }
   */
-  
   std::promise<ResponseMessage> response_promise;
   std::future<ResponseMessage> response_future = response_promise.get_future();
   try {
@@ -304,7 +368,6 @@ ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
 void Client::__SendCommandAsync(const CommandMessage& cmd, 
                                 std::function<void(const ResponseMessage&)> callback) {
   const int64_t cmd_id = cmd.command_id();
-
   /*
   std::cout << "__SendCommandAsync id=" << cmd.command_id() << " : ";
   switch (cmd.command_type()) {
@@ -320,7 +383,6 @@ void Client::__SendCommandAsync(const CommandMessage& cmd,
       std::cout << "EXECUTE_TRIGGER" << std::endl; break;
   }
   */
-
   {
     std::lock_guard<std::mutex> lock(dealer_mutex_);
     async_responses_[cmd_id] = callback;
