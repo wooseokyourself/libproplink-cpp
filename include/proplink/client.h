@@ -56,12 +56,12 @@ private:
   
   // ZeroMQ
   zmq::context_t context_;
-  std::unique_ptr<zmq::socket_t> dealer_;  // DEALER 소켓
+  std::unique_ptr<zmq::socket_t> dealer_;
   std::mutex dealer_mutex_;
   std::map<uint64_t, std::promise<ResponseMessage>> pending_responses_;
   std::map<uint64_t, std::function<void(const ResponseMessage&)>> async_responses_;
-  std::unique_ptr<zmq::socket_t> subscriber_;  // SUB 소켓
-  std::unique_ptr<zmq::socket_t> inproc_socket_;  // 종료용 소켓
+  std::unique_ptr<zmq::socket_t> subscriber_;
+  std::unique_ptr<zmq::socket_t> inproc_socket_;
   std::string dealer_endpoint_;
   std::string sub_endpoint_;
   std::atomic<uint64_t> command_id_;
