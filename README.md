@@ -1,6 +1,6 @@
 # PropLink Library
 
-PropLink is a C++ client-server communication library designed for efficient server-client communication via ZeroMQ. It provides a robust mechanism for sharing variables and triggers between processes with minimal setup. The communication protocols following have been tested:
+PropLink is a C++ client-server communication library via ZeroMQ. It provides a robust mechanism for sharing variables and triggers between processes with minimal setup. The communication protocols following have been tested:
 - TCP for Windows, Linux
 - IPC for Linux
 
