@@ -55,12 +55,9 @@ PropLink is a C++ client-server communication library designed for efficient int
    ```powershell
    mkdir build
    cd build
-   cmake .. -G "Visual Studio 17 2022" -A x64 -T v142 -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+   cmake .. 
    cmake --build . --config Release
-   ```
-   or
-   ```powershell
-   ./rebuild.ps1
+   cmake --build . --config Debug
    ```
 
 ### Linux
