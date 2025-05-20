@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <IPTypes.h>
 #include <iphlpapi.h>
+#pragma comment(lib, "iphlpapi.lib")
 #endif
 
 namespace proplink {
