@@ -530,10 +530,9 @@ void Client::__WorkerLoop() {
         // Handles async communication.
         {
           std::lock_guard<std::mutex> lock(dealer_mutex_);
-          auto it = async_responses_.find(acmd_id);
+          auto it = async_responses_.find(cmd_id);
           if (it != async_responses_.end()) {
-            if (it->second)asdasdasd
-            it->second(response);
+            if (it->second) it->second(response);
             async_responses_.erase(it);
           }
         }
