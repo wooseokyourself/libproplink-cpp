@@ -62,7 +62,7 @@ int main() {
   // Create client and connect to server
   std::cout << "Creating client and connecting to server..." << std::endl;
 #ifdef _WIN32
-  Client client("tcp://192.168.56.100:5555", "tcp://192.168.56.100:5556");
+  Client client("tcp://192.168.56.1:15341", "tcp://192.168.56.1:15342");
 #else
   Client client("ipc:///tmp/server1", "ipc:///tmp/server2");
 #endif

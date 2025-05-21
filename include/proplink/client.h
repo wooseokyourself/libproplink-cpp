@@ -30,14 +30,14 @@ public:
   // It won't check the variable is read_only or not. 
   bool SetVariable(const std::string& name, const Value& value,
                    const ConnectionOptions connection_option = AsyncConnection, 
-                   std::function<void(const ResponseMessage&)> callback = std::function<void(const ResponseMessage&)>());
+                   std::function<void(const ResponseMessage&)> callback = nullptr);
 
   // @return Whether the command was successfully sent.
   // @param connection_option Whether to wait for the server's response.
   // @param callback Callback to be called after the server responds.
   bool ExecuteTrigger(const std::string& trigger_name,
                       const ConnectionOptions connection_option = AsyncConnection, 
-                      std::function<void(const ResponseMessage&)> callback = std::function<void(const ResponseMessage&)>());
+                      std::function<void(const ResponseMessage&)> callback = nullptr);
 
   bool IsConnected() const { return connected_; }
 
@@ -49,7 +49,7 @@ private:
   uint64_t __GetNextCommandId();
   ResponseMessage __SendCommandSync(const CommandMessage& cmd);
   void __SendCommandAsync(const CommandMessage& cmd, 
-                          std::function<void(const ResponseMessage&)> callback = std::function<void(const ResponseMessage&)>());
+                          std::function<void(const ResponseMessage&)> callback = nullptr);
   void __WorkerLoop();
   Value __ExtractValue(const VariableMessage& variable);
   void __SetValueToVariableMessage(VariableMessage* variable, const Value& value);

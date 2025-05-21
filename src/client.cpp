@@ -256,7 +256,7 @@ bool Client::SetVariable(const std::string& name,
     //std::cout << "Client::SetVariable calling __SendCommandSync" << std::endl;
     ResponseMessage response = __SendCommandSync(cmd);
     //std::cout << "Client::SetVariable __SendCommandSync returns response" << std::endl;
-    callback(response);
+    if (callback) callback(response);
     return true;
   }
 }
@@ -282,7 +282,7 @@ bool Client::ExecuteTrigger(const std::string& trigger_name,
   }
   else {
     ResponseMessage response = __SendCommandSync(cmd);
-    callback(response);
+    if (callback) callback(response);
     return true;
   }
 }
@@ -386,7 +386,7 @@ void Client::__SendCommandAsync(const CommandMessage& cmd,
   */
   {
     std::lock_guard<std::mutex> lock(dealer_mutex_);
-    async_responses_[cmd_id] = callback;
+    if (callback) async_responses_[cmd_id] = callback;
     dealer_->send(zmq::message_t(), ZMQ_SNDMORE);
     zmq::message_t request(cmd.ByteSizeLong());
     cmd.SerializeToArray(request.data(), request.size());
@@ -530,9 +530,9 @@ void Client::__WorkerLoop() {
         // Handles async communication.
         {
           std::lock_guard<std::mutex> lock(dealer_mutex_);
-          auto it = async_responses_.find(cmd_id);
+          auto it = async_responses_.find(acmd_id);
           if (it != async_responses_.end()) {
-            // 콜백 함수 호출
+            if (it->second)asdasdasd
             it->second(response);
             async_responses_.erase(it);
           }
