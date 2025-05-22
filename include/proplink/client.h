@@ -34,13 +34,33 @@ public:
   // @return The value of the variable 'name', or empty Value() if 'name' does not exist.
   Value GetVariable(const std::string& name);
 
+  // @brief Queries the value of a variable from the server using asynchronous connection.
+  // @param name The name of the variable to retrieve.
+  // @param callback Callback to be called after the server responds.
+  // @return Whether the command was successfully sent. It does not guarantee that the actual value retrieve was successful.
+  // (e.g. true is returned even when querying a variable that does not exist.)
+  bool GetVariable(const std::string& name,
+                   std::function<void(const ResponseMessage&)> callback);
+
   // @brief Queries the names and values of all variables that exist from the server using synchronous connection.
   // @return Map containing name-value pairs of all variables registered in the server.
   std::unordered_map<std::string, Value> GetAllVariables();
 
+  // @brief Queries the names of all triggers that exist from the server using asynchronous connection.
+  // @param callback Callback to be called after the server responds.
+  // @return Whether the command was successfully sent. It does not guarantee that the actual value retrieve was successful.
+  // (e.g. true is returned even when querying a variable that does not exist.)
+  bool GetAllVariables(std::function<void(const ResponseMessage&)> callback);
+
   // @brief Queries the names of all triggers that exist from the server using synchronous connection.
   // @return Vector containing names of all triggers registered in the server.
   std::vector<std::string> GetAllTriggers();
+
+  // @brief Queries the names of all triggers that exist from the server using asynchronous connection.
+  // @param callback Callback to be called after the server responds.
+  // @return Whether the command was successfully sent. It does not guarantee that the actual value retrieve was successful.
+  // (e.g. true is returned even when querying a variable that does not exist.)
+  bool GetAllTriggers(std::function<void(const ResponseMessage&)> callback);
 
   // @brief Sets the value of a variable on the server.
   // @param name The name of the variable to set.

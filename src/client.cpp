@@ -176,6 +176,22 @@ Value Client::GetVariable(const std::string& name) {
   return Value{};
 }
 
+bool Client::GetVariable(const std::string& name,
+                   std::function<void(const ResponseMessage&)> callback) {
+  if (!opened_ && !Open()) {
+    std::cerr << "Not connected to server" << std::endl;
+    return false;
+  }
+  
+  CommandMessage cmd;
+  cmd.set_command_id(__GetNextCommandId());
+  cmd.set_command_type(CommandMessage::GET_VARIABLE);
+  cmd.set_variable_name(name);
+  
+  __SendCommandAsync(cmd, callback);
+  return true;
+}
+
 std::unordered_map<std::string, Value> Client::GetAllVariables() {
   std::unordered_map<std::string, Value> result;
   
@@ -202,6 +218,20 @@ std::unordered_map<std::string, Value> Client::GetAllVariables() {
   return result;
 }
 
+bool Client::GetAllVariables(std::function<void(const ResponseMessage&)> callback) {
+  if (!opened_ && !Open()) {
+    std::cerr << "Not connected to server" << std::endl;
+    return false;
+  }
+  
+  CommandMessage cmd;
+  cmd.set_command_id(__GetNextCommandId());
+  cmd.set_command_type(CommandMessage::GET_ALL_VARIABLES);
+  
+  __SendCommandAsync(cmd, callback);
+  return true;
+}
+
 std::vector<std::string> Client::GetAllTriggers() {
   std::vector<std::string> result;
   
@@ -226,6 +256,20 @@ std::vector<std::string> Client::GetAllTriggers() {
   }
   
   return result;
+}
+
+bool Client::GetAllTriggers(std::function<void(const ResponseMessage&)> callback) {
+  if (!opened_ && !Open()) {
+    std::cerr << "Not connected to server" << std::endl;
+    return false;
+  }
+  
+  CommandMessage cmd;
+  cmd.set_command_id(__GetNextCommandId());
+  cmd.set_command_type(CommandMessage::GET_ALL_TRIGGERS);
+  
+  __SendCommandAsync(cmd, callback);
+  return true;
 }
 
 bool Client::SetVariable(const std::string& name, 
@@ -348,7 +392,25 @@ ResponseMessage Client::__SendCommandSync(const CommandMessage& cmd) {
   }
   
   try {
-    return response_future.get();
+    auto status = response_future.wait_for(std::chrono::milliseconds(request_timeout_ms_));
+    
+    if (status == std::future_status::ready) {
+      auto response = response_future.get();
+      return response;
+    } else {
+      
+      // pending_responses에서 제거
+      {
+        std::lock_guard<std::mutex> lock(dealer_mutex_);
+        pending_responses_.erase(cmd_id);
+      }
+      
+      ResponseMessage timeout_response;
+      timeout_response.set_command_id(cmd_id);
+      timeout_response.set_success(false);
+      timeout_response.set_error_message("Response timeout");
+      return timeout_response;
+    }
   }
   catch (const std::exception& e) {
     // Exceptions from future.get()
