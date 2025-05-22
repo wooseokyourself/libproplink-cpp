@@ -68,7 +68,7 @@ int main() {
 #endif
 
   std::cout << "Connecting to server..." << std::endl;
-  if (!client.Connect()) {
+  if (!client.Open()) {
     std::cerr << "Failed to connect to server" << std::endl;
     return 1;
   }
@@ -273,7 +273,7 @@ int main() {
   
   // Close connection
   std::cout << "Closing client connection..." << std::endl;
-  client.Disconnect();
+  client.Close();
   std::cout << "Client connection closed" << std::endl;
   
   return 0;

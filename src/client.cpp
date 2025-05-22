@@ -62,21 +62,23 @@ Client::Client(const std::string& dealer_endpoint, const std::string& sub_endpoi
     : dealer_endpoint_(dealer_endpoint),
       sub_endpoint_(sub_endpoint), 
       context_(1),
-      connected_(false),
+      opened_(false),
       command_id_(0),
-      request_timeout_ms_(-1) {
+      request_timeout_ms_(1000) {
 }
 
 Client::~Client() {
-  Disconnect();
+  Close();
 }
 
-bool Client::Connect() {
-  if (connected_) {
+bool Client::Open(const int socket_timeout_ms) {
+  if (opened_) {
     return true;
   }
   
   try {
+    request_timeout_ms_ = socket_timeout_ms;
+
     //std::cout << "Creating socket to connect to " << dealer_endpoint_ << std::endl;
     dealer_ = std::make_unique<zmq::socket_t>(context_, ZMQ_DEALER);
 
@@ -96,18 +98,15 @@ bool Client::Connect() {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     
-    //std::cout << "Creating socket to connect to " << sub_endpoint_ << std::endl;
     subscriber_ = std::make_unique<zmq::socket_t>(context_, ZMQ_SUB);
     subscriber_->setsockopt(ZMQ_SUBSCRIBE, "", 0); // Subscribes all messages.
-    //std::cout << "Connecting to server at " << sub_endpoint_ << std::endl;
     subscriber_->connect(sub_endpoint_);
     
     inproc_socket_ = std::make_unique<zmq::socket_t>(context_, ZMQ_PAIR);
     inproc_socket_->bind("inproc://control");
 
     if (dealer_->connected() && subscriber_->connected()) {
-      connected_ = true;
-      //std::cout << "Connected to server" << std::endl;
+      opened_ = true;
       running_ = true;
       worker_thread_ = std::thread(&Client::__WorkerLoop, this);
     } else {
@@ -116,25 +115,25 @@ bool Client::Connect() {
       if (subscriber_) subscriber_->close();
       if (inproc_socket_) inproc_socket_->close();
     }
-    return connected_;
+    return opened_;
   } catch (const zmq::error_t& e) {
-    std::cerr << "ZeroMQ error in Connect(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
+    std::cerr << "ZeroMQ error in Open(): " << e.what() << " (errno: " << e.num() << ")" << std::endl;
     if (dealer_) dealer_->close();
     if (subscriber_) subscriber_->close();
     if (inproc_socket_) inproc_socket_->close();
-    connected_ = false;
+    opened_ = false;
     return false;
   } catch (const std::exception& e) {
-    std::cerr << "Exception in Connect(): " << e.what() << std::endl;
+    std::cerr << "Exception in Open(): " << e.what() << std::endl;
     if (dealer_) dealer_->close();
     if (subscriber_) subscriber_->close();
     if (inproc_socket_) inproc_socket_->close();
-    connected_ = false;
+    opened_ = false;
     return false;
   }
 }
 
-void Client::Disconnect() {
+void Client::Close() {
   if (running_) {
     running_ = false;
 
@@ -145,18 +144,15 @@ void Client::Disconnect() {
     s.send(msg);
 
     if (worker_thread_.joinable()) worker_thread_.join();
-    //std::cout << "Client subscriber stopped" << std::endl;
-
     if (dealer_) dealer_->close();
     if (subscriber_) subscriber_->close();
     if (inproc_socket_) inproc_socket_->close();
-    //std::cout << "Socket released" << std::endl;
   }
-  if (connected_) connected_ = false;
+  if (opened_) opened_ = false;
 }
 
 Value Client::GetVariable(const std::string& name) {
-  if (!connected_ && !Connect()) {
+  if (!opened_ && !Open()) {
     std::cerr << "Not connected to server" << std::endl;
     return Value{};
   }
@@ -183,7 +179,7 @@ Value Client::GetVariable(const std::string& name) {
 std::unordered_map<std::string, Value> Client::GetAllVariables() {
   std::unordered_map<std::string, Value> result;
   
-  if (!connected_ && !Connect()) {
+  if (!opened_ && !Open()) {
     std::cerr << "Not connected to server" << std::endl;
     return result;
   }
@@ -209,7 +205,7 @@ std::unordered_map<std::string, Value> Client::GetAllVariables() {
 std::vector<std::string> Client::GetAllTriggers() {
   std::vector<std::string> result;
   
-  if (!connected_ && !Connect()) {
+  if (!opened_ && !Open()) {
     std::cerr << "Not connected to server" << std::endl;
     return result;
   }
@@ -236,7 +232,7 @@ bool Client::SetVariable(const std::string& name,
                          const Value& value, 
                          const ConnectionOptions connection_option, 
                          std::function<void(const ResponseMessage&)> callback) {
-  if (!connected_ && !Connect()) {
+  if (!opened_ && !Open()) {
     std::cerr << "Not connected to server" << std::endl;
     return false;
   }
@@ -253,9 +249,7 @@ bool Client::SetVariable(const std::string& name,
     __SendCommandAsync(cmd, callback);
     return true;
   } else {
-    //std::cout << "Client::SetVariable calling __SendCommandSync" << std::endl;
     ResponseMessage response = __SendCommandSync(cmd);
-    //std::cout << "Client::SetVariable __SendCommandSync returns response" << std::endl;
     if (callback) callback(response);
     return true;
   }
@@ -264,7 +258,7 @@ bool Client::SetVariable(const std::string& name,
 bool Client::ExecuteTrigger(const std::string& trigger_name, 
                             const ConnectionOptions connection_option, 
                             std::function<void(const ResponseMessage&)> callback) {
-  if (!connected_ && !Connect()) {
+  if (!opened_ && !Open()) {
     std::cerr << "Not connected to server" << std::endl;
     return false;
   }
@@ -286,6 +280,8 @@ bool Client::ExecuteTrigger(const std::string& trigger_name,
     return true;
   }
 }
+
+bool Client::IsOpened() const { return opened_; }
 
 void Client::RegisterCallback(const std::string& name, 
                               VariableChangedCallback callback) {
@@ -448,7 +444,7 @@ void Client::__WorkerLoop() {
             // std::cout << "Reconnection successful" << std::endl;
             reconnect_attempts = 0;
             need_reconnect = false;
-            connected_ = true;
+            opened_ = true;
             
             // Sends error message to pending requests.
             std::lock_guard<std::mutex> lock(dealer_mutex_);
@@ -482,7 +478,7 @@ void Client::__WorkerLoop() {
       }
       else {
         std::cerr << "Max reconnection attempts reached. Giving up." << std::endl;
-        connected_ = false;
+        opened_ = false;
         
         // Sends failure to all requests.
         std::lock_guard<std::mutex> lock(dealer_mutex_);
