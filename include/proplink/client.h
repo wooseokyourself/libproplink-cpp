@@ -31,7 +31,7 @@ public:
 
   // @brief Queries the value of a variable from the server using synchronous connection.
   // @param name The name of variable to retrieve.
-  // @return The value of the variable 'name', or empty Value() if 'name' does not exist.
+  // @return The value of the variable 'name', or empty Value() if 'name' does not exist or communication failed.
   Value GetVariable(const std::string& name);
 
   // @brief Queries the value of a variable from the server using asynchronous connection.
@@ -43,7 +43,7 @@ public:
                    std::function<void(const ResponseMessage&)> callback);
 
   // @brief Queries the names and values of all variables that exist from the server using synchronous connection.
-  // @return Map containing name-value pairs of all variables registered in the server.
+  // @return Map containing name-value pairs of all variables registered in the server, or empty map if communication failed.
   std::unordered_map<std::string, Value> GetAllVariables();
 
   // @brief Queries the names of all triggers that exist from the server using asynchronous connection.
@@ -53,7 +53,7 @@ public:
   bool GetAllVariables(std::function<void(const ResponseMessage&)> callback);
 
   // @brief Queries the names of all triggers that exist from the server using synchronous connection.
-  // @return Vector containing names of all triggers registered in the server.
+  // @return Vector containing names of all triggers registered in the server, or empty vector if communication failed.
   std::vector<std::string> GetAllTriggers();
 
   // @brief Queries the names of all triggers that exist from the server using asynchronous connection.
