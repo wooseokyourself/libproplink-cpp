@@ -168,6 +168,7 @@ void Server::SetVariable(const std::string& name, const Value& value) {
     }
   }
   else {
+    std::cerr << "Failed to set variable named '" << name << "', it had not registered" << std::endl;
     return;
   }
 }
